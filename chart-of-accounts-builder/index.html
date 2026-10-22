@@ -1,0 +1,2347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Chart of Accounts Studio — for Manager.io</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" crossorigin="anonymous"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --ink:#181c2e; --ink-2:#3a3f5c; --muted:#767b9c;
+    --bg:#f6f5fb; --card:#ffffff; --border:#e7e5f3;
+    --violet:#6d5bd0; --violet-dk:#4f3fb0; --violet-lt:#efecfd;
+    --teal:#0f9b8e; --teal-dk:#0b7b70; --teal-lt:#e3f7f4;
+    --gold:#e0a324; --gold-dk:#b5810f; --gold-lt:#fdf1dc;
+    --coral:#ef6461; --coral-lt:#fdeceb;
+    --green:#1f9d64; --green-lt:#e5f8ee;
+    --red:#e0524a; --red-lt:#fdece9;
+    --amber:#dc9a1f; --amber-lt:#fbf1dc;
+    --radius:12px; --radius-sm:8px;
+    --shadow:0 2px 10px rgba(45,35,110,.06);
+    --shadow-lg:0 16px 48px rgba(30,20,80,.22);
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+    background:var(--bg); color:var(--ink); padding:10px; font-size:12.5px; line-height:1.4;
+  }
+  h2{font-size:16.5px; font-weight:700; letter-spacing:-.01em;}
+  h3{font-size:14px; font-weight:700; color:var(--ink-2); margin-bottom:8px;}
+
+  /* ── App Header ── */
+  .app-header{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--card); border:1px solid var(--border); border-radius:9px;
+    padding:6px 12px; margin-bottom:6px; box-shadow:var(--shadow);
+  }
+  .brand-wrap{display:flex; align-items:center; gap:8px;}
+  .brand-icon{
+    width:24px; height:24px; border-radius:6px; flex-shrink:0;
+    background:linear-gradient(135deg,var(--violet),var(--teal));
+    display:flex; align-items:center; justify-content:center; font-size:12px;
+  }
+  .brand-name{font-size:12.5px; font-weight:800; color:var(--ink); letter-spacing:-.01em; line-height:1.1;}
+  .brand-sub{display:none;}
+  .hdr-divider{width:1px; height:18px; background:var(--border); flex-shrink:0;}
+  .hdr-meta{display:flex; align-items:center; gap:5px; flex-wrap:wrap;}
+  .hdr-badge{
+    padding:2px 8px; border-radius:5px; font-size:9px; font-weight:800;
+    letter-spacing:.04em; text-transform:uppercase; border:1px solid transparent;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .badge-version{background:var(--violet-lt); color:var(--violet-dk); border-color:#d7cff8;}
+  .badge-rw{background:var(--amber-lt); color:var(--amber); border-color:#f3dfa8;}
+  .badge-guide{background:var(--teal-lt); color:var(--teal-dk); border-color:#a8e6de; cursor:pointer; display:inline-flex; align-items:center; gap:4px;}
+  .badge-guide:hover{background:#cdf0ea;}
+  .badge-security{background:var(--violet-lt); color:var(--violet-dk); border-color:#d7cff8; cursor:pointer; display:inline-flex; align-items:center; gap:4px;}
+  .badge-security:hover{background:#e1d9fb;}
+  .hdr-right{margin-left:auto; display:flex; align-items:center; gap:10px;}
+  .btn-cta{
+    display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:999px; border:none;
+    background:linear-gradient(135deg,var(--coral),#e8877e); color:#fff; font-size:10.5px; font-weight:700; cursor:pointer;
+    box-shadow:0 2px 8px rgba(239,100,97,.3); white-space:nowrap;
+  }
+  .btn-cta:hover{filter:brightness(1.05);}
+
+  /* ── Buttons / generic ── */
+  .btn{padding:5px 12px; border:1.5px solid transparent; border-radius:7px; cursor:pointer; font-size:11.5px; font-weight:700; transition:.15s;}
+  .btn-primary{background:linear-gradient(135deg,var(--violet),var(--violet-dk)); color:#fff; box-shadow:0 2px 7px rgba(109,91,208,.25);}
+  .btn-primary:hover:not(:disabled){filter:brightness(1.06);}
+  .btn-secondary{background:#fff; color:var(--ink-2); border-color:var(--border);}
+  .btn-secondary:hover:not(:disabled){border-color:var(--violet); color:var(--violet-dk);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn-row{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+
+  /* ── Load bar ── */
+  .ctrl-bar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:7px 12px; margin-bottom:6px;
+    background:var(--card); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow);
+  }
+  .prog-wrap{flex:1; min-width:80px; height:4px; background:var(--border); border-radius:3px; overflow:hidden;}
+  .prog-bar{height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--teal)); border-radius:3px; transition:width .3s;}
+
+  /* ── Tabs ── */
+  .type-toggle{display:flex; gap:3px; background:var(--card); border:1px solid var(--border); border-radius:9px; padding:3px; margin-bottom:6px; width:fit-content; flex-wrap:wrap; box-shadow:var(--shadow);}
+  .type-btn{padding:5px 13px; border-radius:6px; cursor:pointer; border:none; background:transparent; font-weight:700; font-size:11.5px; color:var(--muted); white-space:nowrap;}
+  .type-btn.active{color:#fff;}
+  .type-btn[data-type="pl"].active{background:linear-gradient(135deg,var(--teal),var(--teal-dk));}
+  .type-btn[data-type="bs"].active{background:linear-gradient(135deg,var(--gold),var(--gold-dk));}
+  .type-btn[data-type="subsidiary"].active{background:linear-gradient(135deg,var(--violet),var(--violet-dk));}
+  .type-btn[data-type="control"].active{background:linear-gradient(135deg,#4a5568,#2d3748);}
+  .tabs{display:flex; gap:3px; background:var(--card); border:1px solid var(--border); border-radius:9px; padding:3px; margin-bottom:6px; width:fit-content; box-shadow:var(--shadow);}
+  .tab{padding:5px 13px; border-radius:6px; cursor:pointer; border:none; background:transparent; font-weight:700; font-size:11.5px; color:var(--muted);}
+  .tab.active{background:linear-gradient(135deg,var(--violet),var(--violet-dk)); color:#fff;}
+
+  /* ── Cards / boxes ── */
+  .card{background:var(--card); border:1px solid var(--border); border-radius:9px; padding:12px 14px; margin-bottom:6px; box-shadow:var(--shadow);}
+  .badge{display:inline-block; padding:1px 8px; border-radius:20px; font-size:10px; font-weight:700; background:var(--teal-lt); color:var(--teal-dk);}
+  .type-tag{display:inline-block; padding:1px 8px; border-radius:5px; font-size:10px; font-weight:700; background:var(--violet-lt); color:var(--violet-dk); white-space:nowrap;}
+  .info-box{color:var(--teal-dk); background:var(--teal-lt); border-left:3px solid var(--teal); border-radius:6px; padding:5px 10px; font-size:11px; margin-bottom:8px;}
+  .ok-box{color:var(--green); background:var(--green-lt); border-left:3px solid var(--green); border-radius:6px; padding:6px 10px; font-size:11px; margin-bottom:6px;}
+  .err-box{color:var(--red); background:var(--red-lt); border-left:3px solid var(--red); border-radius:6px; padding:6px 10px; font-size:11px; margin-bottom:6px;}
+
+  .field{margin-bottom:8px;}
+  .field label{display:block; font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-2); margin-bottom:3px;}
+  .field input[type=text],.field input[type=file],.field select{width:100%; padding:6px 10px; border:1.5px solid var(--border); border-radius:7px; font-size:12px; font-family:inherit;}
+  .search-bar{margin-bottom:8px;}
+  .search-bar input,.search-bar select{padding:6px 12px; border:1.5px solid var(--border); border-radius:7px; font-size:12px;}
+
+  .tbl-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:8px; background:#fff; max-height:calc(100vh - 260px); overflow-y:auto;}
+  table{width:100%; border-collapse:collapse; font-size:11.5px;}
+  thead th{background:var(--bg); padding:5px 10px; text-align:left; font-weight:800; color:var(--ink-2); font-size:9px; text-transform:uppercase; letter-spacing:.04em; border-bottom:2px solid var(--border); white-space:nowrap; position:sticky; top:0; z-index:1;}
+  tbody td{padding:3px 10px; border-bottom:1px solid var(--bg); line-height:1.3;}
+  tbody tr:hover{background:#faf9ff;}
+  .mono{font-family:ui-monospace,monospace; color:var(--violet-dk);}
+  .empty{text-align:center; padding:24px; color:var(--muted); font-style:italic;}
+  .status-txt{font-size:11px; color:var(--muted); font-style:italic; margin-top:6px;}
+
+  .btn-action{padding:2px 8px; border-radius:5px; cursor:pointer; font-size:10px; font-weight:700; border:1.5px solid transparent; background:var(--violet-lt); color:var(--violet-dk);}
+  .btn-action:hover{background:var(--violet); color:#fff;}
+
+  .upsert-tag{display:inline-block; padding:0 6px; border-radius:4px; font-size:9.5px; font-weight:800;}
+  .upsert-create{background:var(--green-lt); color:var(--green);}
+  .upsert-update{background:var(--amber-lt); color:var(--amber);}
+
+  /* ── Modals ── */
+  .modal-overlay{position:fixed; inset:0; background:rgba(20,15,50,.55); z-index:1000; display:none; align-items:center; justify-content:center; padding:16px;}
+  .modal-overlay.open{display:flex;}
+  .modal-card{background:#fff; border-radius:16px; box-shadow:var(--shadow-lg); width:100%; max-width:640px; max-height:88vh; overflow-y:auto; position:relative;}
+  .modal-box{background:#fff; border-radius:16px; box-shadow:var(--shadow-lg); width:100%; max-width:480px; max-height:90vh; overflow-y:auto; padding:24px; position:relative;}
+  .modal-close{position:absolute; top:14px; right:16px; background:var(--bg); border:1px solid var(--border); width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:13px; color:var(--muted); z-index:2;}
+  .modal-head{padding:26px 28px 20px; position:relative;}
+  .modal-head.sec{background:linear-gradient(135deg,var(--violet-lt),#f4f1fd);}
+  .modal-head.guide{background:linear-gradient(135deg,var(--teal-lt),#eafbf8);}
+  .modal-eyebrow{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:6px;}
+  .modal-eyebrow.sec{color:var(--violet-dk);}
+  .modal-eyebrow.hire{color:var(--coral);}
+  .modal-head.hire{background:linear-gradient(135deg,var(--coral-lt),#fdf1f0);}
+  .modal-title .accent{color:var(--coral);}
+
+  /* Hire modal internals */
+  .hire-compare{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;}
+  .hire-col{padding:14px; border-radius:9px; border:1px solid var(--border); display:flex; flex-direction:column; gap:5px;}
+  .hire-col.free{border-color:#86efac; background:var(--green-lt);}
+  .hire-col.pro{border-color:#fcd34d; background:var(--amber-lt);}
+  .hire-col-label{font-size:9px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; font-family:ui-monospace,monospace;}
+  .hire-col.free .hire-col-label{color:#15803d;}
+  .hire-col.pro .hire-col-label{color:#b45309;}
+  .hire-col-title{font-size:13px; font-weight:700; color:var(--ink);}
+  .hire-col-desc{font-size:11.5px; color:var(--muted); line-height:1.5;}
+  .hire-services{background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:14px 16px; margin-bottom:14px;}
+  .hire-services h4{font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; font-family:ui-monospace,monospace;}
+  .hire-services ul{list-style:none; display:flex; flex-direction:column; gap:6px;}
+  .hire-services li{display:flex; gap:9px; font-size:12.5px; color:var(--ink); line-height:1.5;}
+  .hire-services li::before{content:'✓'; color:var(--green); font-weight:800; flex-shrink:0; font-family:ui-monospace,monospace;}
+  .hire-contact{background:linear-gradient(135deg,var(--violet-lt),#f4f1fd); border:1px solid #d7cff8; border-radius:9px; padding:14px 16px;}
+  .hire-contact-label{font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--violet-dk); margin-bottom:6px; font-family:ui-monospace,monospace;}
+  .hire-contact p{font-size:12.5px; color:var(--ink); line-height:1.6; margin-bottom:10px;}
+  .hire-cta{display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:8px; background:linear-gradient(135deg,var(--violet),var(--coral)); color:#fff; font-size:12.5px; font-weight:700; text-decoration:none;}
+  .hire-cta:hover{box-shadow:0 4px 14px rgba(109,91,208,.35);}
+  .modal-eyebrow.guide{color:var(--teal-dk);}
+  .modal-title{font-size:20px; font-weight:800; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;}
+  .modal-subtitle{font-size:12.5px; color:var(--muted); line-height:1.55;}
+  .modal-body{padding:22px 28px;}
+  .modal-footer{padding:16px 28px; border-top:1px solid var(--border); display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted);}
+
+  .sec-check{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--bg);}
+  .sec-check:last-child{border-bottom:none;}
+  .sec-check-icon{flex-shrink:0; width:26px; height:26px; border-radius:50%; background:var(--green-lt); color:var(--green); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;}
+  .sec-check-title{font-size:13px; font-weight:700; color:var(--ink); margin-bottom:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .sec-check-status{font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; background:var(--violet-lt); color:var(--violet-dk); padding:2px 7px; border-radius:5px;}
+  .sec-check-desc{font-size:12px; color:var(--muted); line-height:1.55;}
+
+  .guide-step{display:flex; gap:14px; padding:16px 0; border-bottom:1px solid var(--bg);}
+  .guide-step:last-child{border-bottom:none;}
+  .guide-num{flex-shrink:0; width:28px; height:28px; border-radius:50%; background:var(--teal); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:800;}
+  .guide-step-title{font-size:13.5px; font-weight:800; color:var(--ink); margin-bottom:5px;}
+  .guide-step-desc{font-size:12.5px; color:var(--ink-2); line-height:1.6;}
+  .guide-step-desc code{background:var(--bg); color:var(--violet-dk); padding:1px 6px; border-radius:4px; font-size:11.5px; font-family:ui-monospace,monospace;}
+  .guide-section-title{font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:20px 0 4px;}
+  .guide-section-title:first-child{margin-top:0;}
+</style>
+</head>
+<body>
+
+<!-- ══ App Header ══ -->
+<div class="app-header">
+  <div class="brand-wrap">
+    <div class="brand-icon">📒</div>
+    <div>
+      <div class="brand-name">Chart of Accounts Studio</div>
+      <div class="brand-sub">for Manager.io · by Promo ERP</div>
+    </div>
+  </div>
+  <div class="hdr-divider"></div>
+  <div class="hdr-meta">
+    <span class="hdr-badge badge-version">v3.0</span>
+    <span class="hdr-badge badge-rw">Read + Write</span>
+    <span class="hdr-badge badge-guide" onclick="openGuideModal()" title="Open the user manual / README">📖 README</span>
+    <span class="hdr-badge badge-security" onclick="openSecurityModal()" title="View active security protections">🔒 Secure</span>
+    <span class="hdr-badge badge-guide" onclick="openDataModal()" title="See exactly where your data goes">📄 Data</span>
+  </div>
+  <div class="hdr-right">
+    <button class="btn-cta" onclick="openContactModal()" title="Interested in a custom Manager.io extension for your business?">
+      <span>💼</span><span>Need Custom Work?</span>
+    </button>
+  </div>
+</div>
+
+<div class="ctrl-bar">
+  <button class="btn btn-primary" id="load-btn" onclick="loadAll()">⬇ Load Data</button>
+  <div class="prog-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+  <span class="status-txt" id="status-txt">Press Load to fetch data from Manager</span>
+</div>
+<div id="load-errors-banner"></div>
+
+<div class="type-toggle" id="type-toggle">
+  <button class="type-btn active" data-type="pl" onclick="switchType('pl')">📈 Profit &amp; Loss</button>
+  <button class="type-btn" data-type="bs" onclick="switchType('bs')">🏦 Balance Sheet</button>
+  <button class="type-btn" data-type="subsidiary" onclick="switchType('subsidiary')">👥 Subsidiary Accounts</button>
+  <button class="type-btn" data-type="control" onclick="switchType('control')">🏛️ Control Accounts</button>
+</div>
+
+<div class="tabs" id="tab-bar">
+  <button class="tab active" data-tab="report" onclick="switchTab('report')">📊 Report</button>
+  <button class="tab" data-tab="import" onclick="switchTab('import')">📥 Bulk Import</button>
+</div>
+
+<div id="app">
+  <div class="card"><div class="empty">Press <strong>⬇ Load Data</strong> to begin — or open the <strong>📖 Guide</strong> above first if this is your first time here.</div></div>
+</div>
+
+<!-- ══ Security Modal ══ -->
+<div class="modal-overlay" id="sec-overlay" onclick="if(event.target===this) closeSecurityModal()">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeSecurityModal()">✕</button>
+    <div class="modal-head sec">
+      <span class="modal-eyebrow sec">🔒 Security Layer</span>
+      <div class="modal-title">Active Protections</div>
+      <div class="modal-subtitle">This tool reads and writes chart-of-accounts data in your Manager.io business. Here's exactly what guards that process.</div>
+    </div>
+    <div class="modal-body">
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">Zero external tracking <span class="sec-check-status">NO ANALYTICS</span></div>
+          <div class="sec-check-desc">No telemetry, no analytics, no cookies, no fingerprinting. Your account data never leaves the connection between this page and your own Manager.io business.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">Origin-pinned messaging <span class="sec-check-status">ACTIVE</span></div>
+          <div class="sec-check-desc">Once Manager's host origin is established, any message claiming to be from Manager but arriving from a different origin is silently rejected — a hostile embedding page can't spoof API responses.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">Endpoint whitelist <span class="sec-check-status">ENFORCED</span></div>
+          <div class="sec-check-desc">Every request path is checked against a strict allow-list built from the exact chart-of-accounts endpoints this tool needs. Nothing else can ever be called, even if a response tried to smuggle a rogue URL.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">One trusted library only <span class="sec-check-status">MINIMAL</span></div>
+          <div class="sec-check-desc">The only external code this page loads is the spreadsheet library (ExcelJS, from cdnjs) used to build and read your import files. No analytics, ad, or tracking scripts are loaded from anywhere.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">XSS-safe rendering <span class="sec-check-status">ESCAPED</span></div>
+          <div class="sec-check-desc">Account names and codes — including anything from an uploaded Excel file — are HTML-escaped before being displayed, so a hostile value can't execute code in the page.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">You approve every write <span class="sec-check-status">PREVIEW FIRST</span></div>
+          <div class="sec-check-desc">Every bulk import shows a full preview — including which rows will be created vs. updated — before a single request is sent. Nothing is written silently.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span>All checks run client-side, in your browser</span>
+      <span style="font-family:ui-monospace,monospace;">v3.0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Guide Modal ══ -->
+<div class="modal-overlay" id="guide-overlay" onclick="if(event.target===this) closeGuideModal()">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeGuideModal()">✕</button>
+    <div class="modal-head guide">
+      <span class="modal-eyebrow guide">📖 Guide</span>
+      <div class="modal-title">How to Use This Extension</div>
+      <div class="modal-subtitle">Read this once before your first import — it'll save you a false start.</div>
+    </div>
+    <div class="modal-body">
+
+      <div class="guide-section-title">Before you touch this extension</div>
+      <div class="guide-step">
+        <div class="guide-num">1</div>
+        <div>
+          <div class="guide-step-title">Create your Groups in Manager first (manually)</div>
+          <div class="guide-step-desc">This extension bulk-imports <em>accounts into groups</em> — it does not create the groups themselves. In Manager, go to <strong>Settings → Chart of Accounts</strong> and create every Profit &amp; Loss and Balance Sheet group you'll need (e.g. "Operating Expenses", "Current Assets") before importing. Every group name you plan to use in your Excel file must already exist in Manager, spelled exactly the same way.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">2</div>
+        <div>
+          <div class="guide-step-title">Create at least one Control Account "bucket" per type (manually)</div>
+          <div class="guide-step-desc">In Manager, go to <strong>Settings → Control Accounts</strong>. For every type you'll use — Customers, Suppliers, Bank and Cash Accounts, Fixed Assets, Inventory Items, etc. — create at least one bucket there (e.g. a "Clients" bucket under Customers). This extension's Subsidiary Accounts import needs a bucket to attach each account to; it does not create the bucket headings for you.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">3</div>
+        <div>
+          <div class="guide-step-title">Fixed Assets &amp; Intangible Assets need TWO buckets each</div>
+          <div class="guide-step-desc">A Fixed Asset needs both a "Fixed Assets" bucket AND a "Fixed Assets — Accum. Depreciation" bucket to point to (same idea for Intangible Assets / Accum. Amortization). You can create these manually in Manager, <em>or</em> import them from this same extension's Subsidiary Accounts sheet first — set <code>Type</code> to <code>Fixed Assets — Accum. Depreciation</code> or <code>Intangible Assets — Accum. Amortization</code> and put a <strong>Balance Sheet Group name</strong> (not a Control Account) in the <code>Control Account 1</code> column for those rows.</div>
+        </div>
+      </div>
+
+      <div class="guide-section-title">Using the extension</div>
+      <div class="guide-step">
+        <div class="guide-num">4</div>
+        <div>
+          <div class="guide-step-title">Press "⬇ Load Data"</div>
+          <div class="guide-step-desc">This pulls your current Profit &amp; Loss accounts, Balance Sheet accounts, and all their groups from Manager. Do this every time you open the extension, and again after making changes directly in Manager.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">5</div>
+        <div>
+          <div class="guide-step-title">Pick a tab: Profit &amp; Loss, Balance Sheet, or Subsidiary Accounts</div>
+          <div class="guide-step-desc"><strong>Profit &amp; Loss / Balance Sheet</strong> — your normal chart-of-accounts lines (Code, Name, Group). <strong>Subsidiary Accounts</strong> — the detailed lists behind a control account: Customers, Suppliers, Bank and Cash Accounts, Fixed Assets, Inventory Items, and more, all in one combined table.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">6</div>
+        <div>
+          <div class="guide-step-title">Report tab — browse, search, edit</div>
+          <div class="guide-step-desc">Click any column header to sort. Type in the search box to filter instantly. Click <strong>✏️ Edit</strong> on any row to change its Code, Name, Group, or Control Account directly. On Profit &amp; Loss / Balance Sheet, you can also tick rows and use <strong>🔢 Bulk Number</strong> to auto-assign sequential codes.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">7</div>
+        <div>
+          <div class="guide-step-title">Bulk Import tab — the main event</div>
+          <div class="guide-step-desc">Click <strong>⬇ Download Template</strong> first — every template includes a full "📖 Instructions" sheet plus reference sheets listing every valid Group / Type / Control Account name in <em>your</em ​ own business, so you're never guessing what to type. Fill it in, then upload it and review the preview table before clicking Import — every row is tagged <span class="upsert-tag upsert-create">create</span> or <span class="upsert-tag upsert-update">update</span> so you know exactly what will happen.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">8</div>
+        <div>
+          <div class="guide-step-title">Re-importing is always safe</div>
+          <div class="guide-step-desc">Fixed a typo? Adding more rows later? Just re-upload — matching is done by <strong>Code</strong>. A Code that already exists gets <strong>updated</strong>, never duplicated. A new Code gets <strong>created</strong>. You can re-run the same file as many times as you like.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">9</div>
+        <div>
+          <div class="guide-step-title">If something fails</div>
+          <div class="guide-step-desc">Every error shows the real message from Manager directly on screen — no digging required. If you want the full technical detail, open your browser's console (F12) and look for lines starting with <code>[API POST]</code> or <code>[API PUT]</code>.</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <span>You can reopen this any time from the 📖 Guide badge</span>
+      <span style="font-family:ui-monospace,monospace;">v3.0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Contact / Custom Work Modal ══ -->
+<div class="modal-overlay" id="contact-overlay" onclick="if(event.target===this) closeContactModal()">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeContactModal()">✕</button>
+    <div class="modal-head hire">
+      <span class="modal-eyebrow hire">⚡ Professional Services</span>
+      <div class="modal-title">Need a <span class="accent">Custom Extension</span> Built?</div>
+      <div class="modal-subtitle">Built by <strong>Promo ERP</strong> as a standard build. If you need something extended further — another workflow, another object type, a related extension, integrations or AI automation — we build those too.</div>
+    </div>
+    <div class="modal-body">
+      <div class="hire-compare">
+        <div class="hire-col free">
+          <div class="hire-col-label">✓ Included</div>
+          <div class="hire-col-title">This Chart of Accounts Studio</div>
+          <div class="hire-col-desc">Built and delivered as a standard build for Manager.io.</div>
+        </div>
+        <div class="hire-col pro">
+          <div class="hire-col-label">★ Available on Request</div>
+          <div class="hire-col-title">Further custom development</div>
+          <div class="hire-col-desc">We design, build, test &amp; deploy additional bespoke extensions for your workflow.</div>
+        </div>
+      </div>
+      <div class="hire-services">
+        <h4>What Promo ERP can build for you</h4>
+        <ul>
+          <li>Custom dashboards, KPI views, and reports tailored to your metrics</li>
+          <li>Custom apps, integrations &amp; AI automation for your workflows</li>
+          <li>Branded invoice, quote, and document layouts</li>
+          <li>Multi-endpoint tools — cross-report analysis, reconciliation, bulk data imports like this one</li>
+          <li>Scalable ERP packages — finance, inventory &amp; sales in one unified platform</li>
+          <li>Ongoing support, maintenance, and feature updates</li>
+        </ul>
+      </div>
+      <div class="hire-contact">
+        <div class="hire-contact-label">🌐 Learn more &amp; get in touch</div>
+        <p>Promo ERP builds scalable ERP solutions and custom Manager.io extensions for businesses of all sizes. Reach out through our website or WhatsApp — we typically reply within one business day — no commitment.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="https://promoerp.it/" target="_blank" rel="noopener" class="hire-cta">
+            🌐 Visit Our Website →
+          </a>
+          <a href="https://wa.me/923218833616?text=Hi%20Promo%20ERP%2C%20I%27m%20interested%20in%20a%20custom%20Manager.io%20extension." target="_blank" rel="noopener" class="hire-cta" style="background:linear-gradient(135deg,#25D366,#128C7E);">
+            💬 WhatsApp Us →
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span>Promo ERP</span>
+      <span style="font-family:ui-monospace,monospace;">© Promo ERP 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Data & Source Modal ══ -->
+<div class="modal-overlay" id="data-overlay" onclick="if(event.target===this) closeDataModal()">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeDataModal()">✕</button>
+    <div class="modal-head sec">
+      <span class="modal-eyebrow sec">📄 Data &amp; Source</span>
+      <div class="modal-title">Where Your Data Goes — Exactly</div>
+      <div class="modal-subtitle">This describes what the code actually does, not a marketing summary. You can verify every claim by viewing this page's source — it's a single HTML file, nothing minified or hidden.</div>
+    </div>
+    <div class="modal-body">
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">Where data comes from</div>
+          <div class="sec-check-desc">All account data is read live from the Manager.io business you currently have open, using the API address and access token Manager itself hands this page when it loads (via <code style="font-family:ui-monospace,monospace;">postMessage</code>). This page has no accounts, credentials, or data of its own — it only ever shows what your Manager business already contains.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">Where data goes when you Load / Edit / Import</div>
+          <div class="sec-check-desc">Every request goes to exactly one place: your own Manager.io API endpoint. There is no other server in the loop — no analytics backend, no logging service, no third-party API. The full list of paths this tool will ever call is hard-coded in the page (the <code style="font-family:ui-monospace,monospace;">ALLOWED_API_PREFIXES</code> whitelist) and enforced before every request.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">The one external connection that isn't Manager</div>
+          <div class="sec-check-desc">This page loads one JavaScript library — ExcelJS, from <code style="font-family:ui-monospace,monospace;">cdnjs.cloudflare.com</code> — to build and read the <code style="font-family:ui-monospace,monospace;">.xlsx</code> template files. That library never receives your Manager data; it only runs inside your browser to construct the spreadsheet you download or read the one you upload.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">Your Excel file never leaves your browser</div>
+          <div class="sec-check-desc">When you upload a bulk-import spreadsheet, it's read directly in memory in your browser tab. It is not uploaded to any server — the parsed rows go straight from the file into the same Manager API calls described above.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">Nothing is stored between sessions</div>
+          <div class="sec-check-desc">This page uses no <code style="font-family:ui-monospace,monospace;">localStorage</code>, <code style="font-family:ui-monospace,monospace;">sessionStorage</code>, cookies, or any browser database. Everything you see lives only in memory while the tab is open — reload the page and it's gone, back to a clean state.</div>
+        </div>
+      </div>
+      <div class="sec-check">
+        <div class="sec-check-icon">✓</div>
+        <div>
+          <div class="sec-check-title">No tracking of any kind</div>
+          <div class="sec-check-desc">No analytics scripts, no tracking pixels, no error-reporting services, no fonts or assets pulled from a tracking CDN. The only thing sent anywhere is the account data required for the action you explicitly took (Load, Edit, or Import).</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span>Every claim above can be checked in the page source</span>
+      <span style="font-family:ui-monospace,monospace;">v3.0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   SECURITY — escaping, origin pinning, endpoint whitelist
+══════════════════════════════════════════════════════════════════ */
+function escHTML(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let MANAGER_ORIGIN = null;
+
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'manager-context' && event.data.payload) {
+    if (MANAGER_ORIGIN && event.origin !== MANAGER_ORIGIN) {
+      console.warn('Rejected manager-context from unexpected origin:', event.origin);
+      return;
+    }
+    MANAGER_ORIGIN = event.origin;
+    window.managerAppContext = event.data.payload;
+  }
+});
+
+function openSecurityModal() { document.getElementById('sec-overlay').classList.add('open'); }
+function closeSecurityModal() { document.getElementById('sec-overlay').classList.remove('open'); }
+function openGuideModal() { document.getElementById('guide-overlay').classList.add('open'); }
+function closeGuideModal() { document.getElementById('guide-overlay').classList.remove('open'); }
+function openContactModal() { document.getElementById('contact-overlay').classList.add('open'); }
+function closeContactModal() { document.getElementById('contact-overlay').classList.remove('open'); }
+function openDataModal() { document.getElementById('data-overlay').classList.add('open'); }
+function closeDataModal() { document.getElementById('data-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSecurityModal(); closeGuideModal(); closeContactModal(); closeDataModal(); } });
+
+/* ══════════════════════════════════════════════════════════════════
+   MANAGER BRIDGE — postMessage + direct-fetch
+══════════════════════════════════════════════════════════════════ */
+function postMessageWithResponse(message, timeoutMs = 30000) {
+  return new Promise((resolve, reject) => {
+    try { assertSafePath(message && message.path); } catch (e) { reject(e); return; }
+    const requestId = crypto.randomUUID();
+    const timer = setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error(`Timeout after ${Math.round(timeoutMs/1000)}s — Manager not responding`));
+    }, timeoutMs);
+    function handler(event) {
+      if (MANAGER_ORIGIN && event.origin !== MANAGER_ORIGIN) return;
+      if (event.data?.type?.endsWith('-response') && event.data?.requestId === requestId) {
+        clearTimeout(timer);
+        window.removeEventListener('message', handler);
+        if (event.data.error) reject(new Error(event.data.error));
+        else resolve(event.data.body);
+      }
+    }
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ ...message, requestId }, '*');
+  });
+}
+
+async function directFetch(method, path, body) {
+  assertSafePath(path);
+  const ctx = window.managerAppContext;
+  if (!ctx || !ctx.apiEndpoint) throw new Error('managerAppContext not available');
+  const base = ctx.apiEndpoint.replace(/\/+$/, '');
+  const url = path.startsWith('http') ? path : base + (path.startsWith('/') ? path : '/' + path);
+  const opts = { method, headers: {
+    'Authorization': 'Bearer ' + ctx.apiAccessToken,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  }};
+  if (body !== undefined && body !== null) opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+  console.log(`[API ${method}]`, url, body ?? '');
+  const resp = await fetch(url, opts);
+  const text = await resp.text();
+  if (!resp.ok) {
+    console.error(`[API ${method} FAILED ${resp.status}]`, url, text);
+    throw new Error(`HTTP ${resp.status}: ${text.substring(0,300)}`);
+  }
+  console.log(`[API ${method} OK]`, url);
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+async function apiCall(method, path, body, opts = {}) {
+  if (window.managerAppContext?.apiEndpoint && opts.preferDirect !== false) {
+    try { return await directFetch(method, path, body); }
+    catch (e) { console.warn('directFetch failed, falling back to postMessage:', e.message); }
+  }
+  const msg = { type: 'api-request', method, path };
+  if (body !== undefined && body !== null) msg.body = body;
+  return postMessageWithResponse(msg, opts.timeoutMs || 30000);
+}
+
+const BATCH_PAGE_SIZE = 2000, BATCH_TIMEOUT_MS = 180000, BATCH_RETRIES = 2;
+
+async function fetchOnePage(path) {
+  let lastErr;
+  for (let attempt = 0; attempt <= BATCH_RETRIES; attempt++) {
+    try { return await apiCall('GET', path, null, { timeoutMs: BATCH_TIMEOUT_MS }); }
+    catch (e) {
+      lastErr = e;
+      if (attempt < BATCH_RETRIES) await new Promise(r => setTimeout(r, 1500 * (attempt+1)));
+    }
+  }
+  throw lastErr;
+}
+
+async function fetchBatch(endpoint, onProgress) {
+  const allItems = [];
+  let nextToken = null, pageNum = 0, lastFirstKey = null;
+  do {
+    const path = nextToken
+      ? `/api4/${endpoint}?PageSize=${BATCH_PAGE_SIZE}&next_page_token=${encodeURIComponent(nextToken)}`
+      : `/api4/${endpoint}?PageSize=${BATCH_PAGE_SIZE}`;
+    const data = await fetchOnePage(path);
+    const page = Array.isArray(data) ? data : (data.items || data.data || []);
+    const firstKey = page[0]?.key || page[0]?.id;
+    if (firstKey && firstKey === lastFirstKey) break;
+    lastFirstKey = firstKey;
+    for (let i = 0; i < page.length; i++) allItems.push(page[i]);
+    nextToken = data.next_page_token || data.nextPageToken || data._links?.next?.href || null;
+    pageNum++;
+    if (onProgress) onProgress(endpoint, allItems.length, pageNum);
+    if (pageNum >= 1000) break;
+  } while (nextToken);
+  return allItems;
+}
+
+function naturalCodeCompare(a, b) {
+  a = String(a||''); b = String(b||'');
+  const an = a.match(/\d+/g), bn = b.match(/\d+/g);
+  if (an && bn) {
+    const ai = parseInt(an[0],10), bi = parseInt(bn[0],10);
+    if (ai !== bi) return ai - bi;
+  }
+  return a.localeCompare(b, undefined, { numeric: true });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   STATEMENT-TYPE CONFIG (Profit & Loss / Balance Sheet)
+══════════════════════════════════════════════════════════════════ */
+const STATEMENTS = {
+  pl: {
+    label: 'Profit & Loss',
+    accountBatchEp: 'profit-and-loss-statement-account-batch',
+    groupBatchEp:   'profit-and-loss-statement-group-batch',
+    singleEp:       '/api4/profit-and-loss-statement-account',
+    batchPostEp:    '/api4/profit-and-loss-statement-account-batch',
+    putMode:        'single',
+  },
+  bs: {
+    label: 'Balance Sheet',
+    accountBatchEp: 'balance-sheet-account-batch',
+    groupBatchEp:   'balance-sheet-group-batch',
+    batchPostEp:    '/api4/balance-sheet-account-batch',
+    batchPutEp:     '/api4/balance-sheet-account-batch',
+    putMode:        'batch',
+  },
+};
+
+async function bulkPutAccounts(pairs, onProgress) {
+  const result = { ok: 0, failed: [] };
+  if (!pairs.length) return result;
+  if (STATEMENTS[State.currentType].putMode === 'batch') {
+    const CHUNK = 200;
+    for (let i = 0; i < pairs.length; i += CHUNK) {
+      const chunk = pairs.slice(i, i + CHUNK);
+      try {
+        await apiCall('PUT', STATEMENTS[State.currentType].batchPutEp, { values: chunk.map(p => ({ key: p.key, value: p.value })) });
+        result.ok += chunk.length;
+      } catch (e) { result.failed.push(`Rows ${i+1}-${i+chunk.length}: ${e.message}`); }
+      if (onProgress) onProgress(Math.min(i + CHUNK, pairs.length), pairs.length);
+    }
+  } else {
+    for (const p of pairs) {
+      try {
+        await apiCall('PUT', STATEMENTS[State.currentType].singleEp, { key: p.key, value: p.value });
+        result.ok++;
+      } catch (e) { result.failed.push(`${p.key}: ${e.message}`); }
+      if (onProgress) onProgress(result.ok + result.failed.length, pairs.length);
+    }
+  }
+  return result;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CONTROL ACCOUNT BUCKETS — kept internally (no UI tab).
+   Subsidiary account types below still need these lists loaded so
+   their "Control Account" dropdown/matching has real names to show.
+══════════════════════════════════════════════════════════════════ */
+const CONTROL_BUCKET_TYPES = [
+  { key: 'bank-accounts',                              label: 'Bank and Cash Accounts' },
+  { key: 'customers',                                  label: 'Customers' },
+  { key: 'suppliers',                                  label: 'Suppliers' },
+  { key: 'employees',                                  label: 'Employees' },
+  { key: 'fixed-assets',                               label: 'Fixed Assets' },
+  { key: 'fixed-assets-accumulated-depreciation',      label: 'Fixed Assets — Accum. Depreciation' },
+  { key: 'intangible-assets',                          label: 'Intangible Assets' },
+  { key: 'intangible-assets-accumulated-amortization', label: 'Intangible Assets — Accum. Amortization' },
+  { key: 'inventory-items',                            label: 'Inventory Items' },
+  { key: 'capital-accounts',                           label: 'Capital Accounts' },
+  { key: 'investments',                                label: 'Investments' },
+  { key: 'special-accounts',                           label: 'Special Accounts' },
+];
+function caEp(key)         { return `control-account-for-${key}`; }
+function caBatchGetEp(key) { return `${caEp(key)}-batch`; }
+function caSingleEp(key)   { return `/api4/${caEp(key)}`; }
+function caBatchPostEp(key){ return `/api4/${caEp(key)}-batch`; }
+
+/* ══════════════════════════════════════════════════════════════════
+   SUBSIDIARY ACCOUNT TYPES (the real per-item lists)
+   ------------------------------------------------------------------
+   Confirmed by API docs: customer-batch, bank-or-cash-account-batch,
+   fixed-asset-batch, inventory-item-batch. Fixed Asset uses itemCode/
+   itemName (not code/name) and TWO control-account fields — one for
+   the Fixed Assets bucket, one for the Accum. Depreciation bucket.
+   Inventory Item also uses itemCode/itemName but a single
+   controlAccount field. Intangible Assets is assumed to mirror Fixed
+   Asset's dual-field pattern — UNCONFIRMED. Suppliers/Employees/
+   Capital Accounts/Investments/Special Accounts are assumed to match
+   the generic Customer-like shape (code/name/controlAccount) —
+   UNCONFIRMED.
+══════════════════════════════════════════════════════════════════ */
+function genericCA(caKey) { return [{ field: 'controlAccount', caKey, label: 'Control Account' }]; }
+
+const SUBSIDIARY_TYPES = [
+  { key: 'customers',         label: 'Customers',              batchEp: 'customer-batch',              codeField: 'code',     nameField: 'name',     controlAccountFields: genericCA('customers'),         confirmed: true  },
+  { key: 'bank-accounts',     label: 'Bank and Cash Accounts', batchEp: 'bank-or-cash-account-batch',  codeField: 'code',     nameField: 'name',     controlAccountFields: genericCA('bank-accounts'),     confirmed: true  },
+  { key: 'suppliers',         label: 'Suppliers',              batchEp: 'supplier-batch',              codeField: 'code',     nameField: 'name',     controlAccountFields: genericCA('suppliers'),         confirmed: false },
+  { key: 'employees',         label: 'Employees',              batchEp: 'employee-batch',              codeField: 'code',     nameField: 'name',     controlAccountFields: genericCA('employees'),         confirmed: false },
+  { key: 'fixed-assets',      label: 'Fixed Assets',           batchEp: 'fixed-asset-batch',           codeField: 'itemCode', nameField: 'itemName', confirmed: true,
+    controlAccountFields: [
+      { field: 'controlAccountForFixedAssets',                             caKey: 'fixed-assets',                              label: 'Control Account (Fixed Assets)' },
+      { field: 'controlAccountForFixedAssetsAccumulatedDepreciation',      caKey: 'fixed-assets-accumulated-depreciation',     label: 'Control Account (Accum. Depreciation)' },
+    ] },
+  { key: 'intangible-assets', label: 'Intangible Assets',      batchEp: 'intangible-asset-batch',      codeField: 'itemCode', nameField: 'itemName', confirmed: false,
+    controlAccountFields: [
+      { field: 'controlAccountForIntangibleAssets',                        caKey: 'intangible-assets',                              label: 'Control Account (Intangible Assets)' },
+      { field: 'controlAccountForIntangibleAssetsAccumulatedAmortization', caKey: 'intangible-assets-accumulated-amortization',     label: 'Control Account (Accum. Amortization)' },
+    ] },
+  { key: 'inventory-items',   label: 'Inventory Items',        batchEp: 'inventory-item-batch',        codeField: 'itemCode', nameField: 'itemName', controlAccountFields: genericCA('inventory-items'),  confirmed: true  },
+  { key: 'capital-accounts',  label: 'Capital Accounts',       batchEp: 'capital-account-batch',       codeField: 'code',     nameField: 'name',     controlAccountFields: genericCA('capital-accounts'), confirmed: false },
+  { key: 'investments',       label: 'Investments',            batchEp: 'investment-batch',            codeField: 'code',     nameField: 'name',     controlAccountFields: genericCA('investments'),      confirmed: false },
+  { key: 'special-accounts',  label: 'Special Accounts',       batchEp: 'special-account-batch',       codeField: 'code',     nameField: 'name',     controlAccountFields: genericCA('special-accounts'), confirmed: false },
+];
+function subType(key) { return SUBSIDIARY_TYPES.find(t => t.key === key); }
+function subBatchPostEp(key) { return `/api4/${subType(key).batchEp}`; }
+function subSingleEp(key) { return `/api4/${subType(key).batchEp.replace(/-batch$/,'')}`; }
+
+const BUCKET_ROW_TYPES = [
+  { key: 'fixed-assets-accumulated-depreciation',      label: 'Fixed Assets — Accum. Depreciation',      mode: 'bucket' },
+  { key: 'intangible-assets-accumulated-amortization', label: 'Intangible Assets — Accum. Amortization', mode: 'bucket' },
+];
+function bucketRowType(key) { return BUCKET_ROW_TYPES.find(t => t.key === key); }
+
+/* ══════════════════════════════════════════════════════════════════
+   ENDPOINT WHITELIST — built from the config above, so it can never
+   drift out of sync with what this tool actually calls.
+══════════════════════════════════════════════════════════════════ */
+const ALLOWED_API_PREFIXES = Array.from(new Set([
+  ...Object.values(STATEMENTS).flatMap(s => [s.accountBatchEp, s.groupBatchEp, s.singleEp, s.batchPostEp, s.batchPutEp].filter(Boolean).map(p => p.replace(/^\/api4\//,''))),
+  ...CONTROL_BUCKET_TYPES.flatMap(t => [caBatchGetEp(t.key), caEp(t.key)]),
+  ...SUBSIDIARY_TYPES.flatMap(t => [t.batchEp, t.batchEp.replace(/-batch$/,'')]),
+])).map(p => '/api4/' + p);
+
+function assertSafePath(path) {
+  if (typeof path !== 'string') throw new Error('Invalid path type');
+  if (path.length > 2048) throw new Error('Path too long');
+  if (/^(javascript|data|vbscript|file|blob):/i.test(path)) throw new Error('Blocked URL scheme in path');
+  const bare = path.split('?')[0];
+  if (!ALLOWED_API_PREFIXES.some(prefix => bare === prefix || bare.startsWith(prefix))) {
+    throw new Error('Path not in whitelist: ' + path);
+  }
+  if (!/^[A-Za-z0-9._\-\/?=&%+:,]+$/.test(path)) throw new Error('Path contains disallowed characters');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════════ */
+function freshTypeState() {
+  return { accounts: [], groups: [], sort: { field: 'code', dir: 'asc' }, search: '', groupFilter: '', selected: new Set(), parsedImportRows: null };
+}
+function freshCombinedState() {
+  return { loaded: false, loading: false, sort: { field: 'code', dir: 'asc' }, search: '', typeFilter: '', selected: new Set(), parsedImportRows: null };
+}
+const State = {
+  loaded: false,
+  currentType: 'pl',
+  currentTab: 'report',
+  data: { pl: freshTypeState(), bs: freshTypeState() },
+  loadErrors: [],
+  ca: {},
+  sub: {},
+  subsidiary: freshCombinedState(),
+  control: freshCombinedState(),
+};
+function ctx()  { return STATEMENTS[State.currentType]; }
+function tstate() { return State.data[State.currentType]; }
+function accountByKey(key) { return (tstate().accounts || []).find(a => a.key === key) || null; }
+
+/* ══════════════════════════════════════════════════════════════════
+   CASH FLOW STATEMENT ACTIVITY (Balance Sheet accounts only)
+   Field name is auto-detected from loaded data (any item key matching
+   /cash.?flow/i); falls back to 'cashFlowStatement'.
+══════════════════════════════════════════════════════════════════ */
+const CASHFLOW_FIELD = 'cashFlowStatement';   // integer enum (CashFlowStatementCategory)
+const CASHFLOW_OPTIONS = [
+  { value: 0, label: 'Operating activities' },
+  { value: 1, label: 'Investing activities' },
+  { value: 2, label: 'Financing activities' },
+];
+function hasCashFlow() { return State.currentType === 'pl' || State.currentType === 'bs'; }
+function cashFlowField() { return CASHFLOW_FIELD; }
+function cashFlowLabel(v) {
+  const n = Number(v ?? 0);
+  const o = CASHFLOW_OPTIONS.find(o => o.value === n);
+  return o ? o.label : `Unknown (${v})`;
+}
+function parseCashFlow(raw) {
+  const t = String(raw ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (t === '') return { ok: true, value: null };          // blank = leave unchanged / default
+  if (t === '0' || t.startsWith('operat')) return { ok: true, value: 0 };
+  if (t === '1' || t.startsWith('invest')) return { ok: true, value: 1 };
+  if (t === '2' || t.startsWith('financ')) return { ok: true, value: 2 };
+  return { ok: false, value: null };
+}
+function cashFlowOptionsHTML(selected) {
+  const n = Number(selected ?? 0);
+  return CASHFLOW_OPTIONS.map(o => `<option value="${o.value}" ${o.value === n ? 'selected' : ''}>${o.label}</option>`).join('');
+}
+function withCashFlow(item, v) {
+  if (v === null || v === undefined || v === '') return { ...item };
+  return { ...item, [CASHFLOW_FIELD]: Number(v) };
+}
+
+function caState(key) {
+  if (!State.ca[key]) State.ca[key] = { accounts: [], loaded: false, loading: false, error: null };
+  return State.ca[key];
+}
+function subState(key) {
+  if (!State.sub[key]) State.sub[key] = { accounts: [], loaded: false, loading: false, error: null };
+  return State.sub[key];
+}
+async function loadCAType(key) {
+  const st = caState(key);
+  st.loading = true; st.error = null;
+  try { st.accounts = await fetchBatch(caBatchGetEp(key)); st.loaded = true; }
+  catch (e) { st.error = e.message; }
+  st.loading = false;
+}
+async function loadSubType(key) {
+  const st = subState(key);
+  st.loading = true; st.error = null;
+  try { st.accounts = await fetchBatch(subType(key).batchEp); st.loaded = true; }
+  catch (e) { st.error = e.message; }
+  st.loading = false;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   GROUP HELPERS (P&L / Balance Sheet groups can nest)
+══════════════════════════════════════════════════════════════════ */
+function groupIndex() {
+  const m = new Map();
+  (tstate().groups || []).forEach(g => { if (g?.key) m.set(g.key, g); });
+  return m;
+}
+function groupPath(groupUuid) {
+  const idx = groupIndex();
+  const parts = []; let cur = groupUuid, guard = 0;
+  while (cur && guard++ < 10) {
+    const g = idx.get(cur); if (!g) break;
+    parts.unshift(g?.item?.name || g?.item?.text || g?.item?.uniqueName || '');
+    cur = g?.item?.group || null;
+  }
+  return parts.filter(Boolean).join(' › ');
+}
+function groupLabel(uuid) { return uuid ? (groupPath(uuid) || 'Ungrouped') : 'Ungrouped'; }
+
+function pathFromGroupList(list, uuid) {
+  if (!uuid) return '';
+  const idx = new Map((list || []).map(g => [g.key, g]));
+  const parts = []; let cur = uuid, guard = 0;
+  while (cur && guard++ < 10) {
+    const g = idx.get(cur); if (!g) break;
+    parts.unshift(g?.item?.name || g?.item?.text || '');
+    cur = g?.item?.group || null;
+  }
+  return parts.filter(Boolean).join(' › ');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LOAD
+══════════════════════════════════════════════════════════════════ */
+async function loadAll() {
+  const btn = document.getElementById('load-btn');
+  const bar = document.getElementById('prog-bar');
+  const status = document.getElementById('status-txt');
+  btn.disabled = true; btn.textContent = 'Loading…'; bar.style.width = '0%';
+  State.loadErrors = [];
+
+  const jobs = [
+    { type:'pl', kind:'accounts', ep: STATEMENTS.pl.accountBatchEp, label: 'P&L Accounts' },
+    { type:'pl', kind:'groups',   ep: STATEMENTS.pl.groupBatchEp,   label: 'P&L Groups' },
+    { type:'bs', kind:'accounts', ep: STATEMENTS.bs.accountBatchEp, label: 'Balance Sheet Accounts' },
+    { type:'bs', kind:'groups',   ep: STATEMENTS.bs.groupBatchEp,   label: 'Balance Sheet Groups' },
+  ];
+  let done = 0;
+  const totalJobs = jobs.length;
+  try {
+    for (const job of jobs) {
+      status.textContent = `Loading ${job.ep}…`;
+      const items = await fetchBatch(job.ep, (ep, loaded, page) => {
+        status.textContent = `${ep} · page ${page} · ${loaded} loaded…`;
+      }).catch(e => {
+        console.warn(`Skipped ${job.ep}:`, e.message);
+        State.loadErrors.push({ label: job.label, ep: job.ep, message: e.message });
+        return [];
+      });
+      State.data[job.type][job.kind] = items;
+      done++; bar.style.width = Math.round(done / totalJobs * 100) + '%';
+    }
+
+    State.loaded = true;
+    status.textContent = `✓ Loaded P&L: ${State.data.pl.accounts.length} accounts / ${State.data.pl.groups.length} groups · ` +
+                          `Balance Sheet: ${State.data.bs.accounts.length} accounts / ${State.data.bs.groups.length} groups`;
+    btn.textContent = '↺ Reload'; btn.disabled = false;
+    renderLoadErrorsBanner();
+    renderTab(State.currentTab);
+  } catch (err) {
+    status.textContent = '⚠ ' + err.message;
+    btn.textContent = '↺ Retry'; btn.disabled = false;
+    document.getElementById('app').innerHTML =
+      `<div class="card"><div class="err-box">⚠ ${escHTML(err.message)}<br><small>Make sure this extension is loaded inside Manager.io.</small></div></div>`;
+  }
+}
+
+function renderLoadErrorsBanner() {
+  const box = document.getElementById('load-errors-banner');
+  if (!box) return;
+  if (!State.loadErrors.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div class="err-box" style="margin-bottom:14px;">
+      ⚠ ${State.loadErrors.length} endpoint(s) failed to load:
+      <ul style="margin:6px 0 0 18px;">
+        ${State.loadErrors.map(e => `<li><strong>${escHTML(e.label)}</strong> (<code>${escHTML(e.ep)}</code>): ${escHTML(e.message)}</li>`).join('')}
+      </ul>
+    </div>`;
+}
+
+async function reloadCurrentTypeAccounts() {
+  State.data[State.currentType].accounts = await fetchBatch(ctx().accountBatchEp);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   NAV
+══════════════════════════════════════════════════════════════════ */
+function switchType(type) {
+  State.currentType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  renderTab(State.currentTab);
+}
+function switchTab(tab) {
+  State.currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  renderTab(tab);
+}
+function renderTab(tab) {
+  if (!State.loaded) {
+    document.getElementById('app').innerHTML = `<div class="card"><div class="empty">Press <strong>⬇ Load Data</strong> first.</div></div>`;
+    return;
+  }
+  if (State.currentType === 'subsidiary') { tab === 'import' ? renderSubsidiaryImportTab() : renderSubsidiaryReport(); return; }
+  if (State.currentType === 'control') { tab === 'import' ? renderControlImportTab() : renderControlReport(); return; }
+  (tab === 'import' ? renderImportTab : renderReport)();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   P&L / BALANCE SHEET — REPORT
+══════════════════════════════════════════════════════════════════ */
+function rowsForType() {
+  return (tstate().accounts || [])
+    .filter(a => !a?.item?.inactive)
+    .map(a => ({ key: a.key, code: a?.item?.code || '', name: a?.item?.name || '', group: groupLabel(a?.item?.group), cashflow: cashFlowLabel(a?.item?.[cashFlowField()]), position: Number(a?.item?.position ?? 0) }));
+}
+function visibleRows() {
+  let rows = rowsForType();
+  const q = (tstate().search || '').toLowerCase().trim();
+  if (q) rows = rows.filter(r => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.group.toLowerCase().includes(q) || (r.cashflow||'').toLowerCase().includes(q));
+  if (tstate().groupFilter) rows = rows.filter(r => r.group === tstate().groupFilter);
+  const { field, dir } = tstate().sort;
+  rows.sort((a,b) => {
+    const cmp = field === 'code' ? naturalCodeCompare(a.code,b.code) : String(a[field]).localeCompare(String(b[field]));
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return rows;
+}
+function groupFilterOptionsHTML() {
+  const groups = Array.from(new Set(rowsForType().map(r => r.group))).sort((a,b)=>a.localeCompare(b));
+  return `<option value="">All groups</option>` + groups.map(g => `<option value="${escHTML(g)}" ${tstate().groupFilter===g?'selected':''}>${escHTML(g)}</option>`).join('');
+}
+function renderReport() {
+  const app = document.getElementById('app');
+  const rows = visibleRows();
+  const sel = tstate().selected;
+  const allChecked = rows.length > 0 && rows.every(r => sel.has(r.key));
+  const th = (label, f) => {
+    const active = tstate().sort.field === f;
+    const arrow = active ? (tstate().sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    return `<th style="cursor:pointer;" onclick="setSort('${f}')">${label}${arrow}</th>`;
+  };
+  app.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0;">
+          <h2 style="white-space:nowrap;">${escHTML(ctx().label)} <span class="badge">${rows.length}</span></h2>
+          <input type="text" style="flex:1;min-width:140px;max-width:280px;" placeholder="🔍 Search…" value="${escHTML(tstate().search||'')}"
+            oninput="tstate().search=this.value; renderReport();">
+          <select style="max-width:200px;" onchange="tstate().groupFilter=this.value; renderReport();">${groupFilterOptionsHTML()}</select>
+          ${sel.size ? `<button class="btn btn-secondary" onclick="tstate().selected.clear(); renderReport();">Clear (${sel.size})</button>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="switchTab('import')">📥 Import</button>
+          <button class="btn btn-secondary" onclick="openBulkGroupPanel()" ${sel.size ? '' : 'disabled'}>🏷️ Change Group (${sel.size})</button>
+          ${hasCashFlow() ? `<button class="btn btn-secondary" onclick="openBulkCashFlowPanel()" ${sel.size ? '' : 'disabled'}>💧 Cash Flow (${sel.size})</button>` : ''}
+          <button class="btn btn-primary" id="bulk-number-btn" onclick="openBulkNumberPanel()" ${sel.size ? '' : 'disabled'}>🔢 Renumber (${sel.size})</button>
+        </div>
+      </div>
+      <div id="bulk-group-panel"></div>
+      <div id="bulk-cashflow-panel"></div>
+      <div id="bulk-number-panel"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:26px;"><input type="checkbox" ${allChecked?'checked':''} onchange="toggleAll(this.checked)"></th>
+            ${th('Code','code')}${th('Account Name','name')}${th('Group','group')}${hasCashFlow() ? th('Cash Flow Activity','cashflow') : ''}
+            <th style="width:60px;">Actions</th>
+          </tr></thead>
+          <tbody>
+            ${rows.length ? rows.map(r => `<tr>
+              <td><input type="checkbox" ${sel.has(r.key)?'checked':''} onchange="toggleRow('${r.key}', this.checked)"></td>
+              <td class="mono">${escHTML(r.code) || '—'}</td>
+              <td>${escHTML(r.name) || '—'}</td>
+              <td>${escHTML(r.group)}</td>
+              ${hasCashFlow() ? `<td>${escHTML(r.cashflow)}</td>` : ''}
+              <td><button class="btn-action" onclick="openEditModal('${r.key}')">Edit</button></td>
+            </tr>`).join('') : `<tr><td colspan="${hasCashFlow()?6:5}" class="empty">No ${escHTML(ctx().label.toLowerCase())} accounts found.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+function setSort(field) {
+  const t = tstate();
+  if (t.sort.field === field) t.sort.dir = t.sort.dir === 'asc' ? 'desc' : 'asc';
+  else t.sort = { field, dir: 'asc' };
+  renderReport();
+}
+function toggleRow(key, checked) { if (checked) tstate().selected.add(key); else tstate().selected.delete(key); renderReport(); }
+function toggleAll(checked) {
+  const rows = visibleRows();
+  if (checked) rows.forEach(r => tstate().selected.add(r.key)); else rows.forEach(r => tstate().selected.delete(r.key));
+  renderReport();
+}
+
+function groupOptionsHTML(selectedGroupKey) {
+  const opts = ['<option value="">— Ungrouped —</option>'];
+  (tstate().groups || []).forEach(g => {
+    const label = groupPath(g.key) || g?.item?.name || g.key;
+    opts.push(`<option value="${g.key}" ${g.key===selectedGroupKey?'selected':''}>${escHTML(label)}</option>`);
+  });
+  return opts.join('');
+}
+function openEditModal(key) {
+  const acct = accountByKey(key);
+  if (!acct) return;
+  const item = acct.item || {};
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open'; overlay.id = 'edit-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+      <h3 style="margin-bottom:14px;">Edit ${escHTML(ctx().label)} Account</h3>
+      <div class="field"><label>Code</label><input type="text" id="edit-code" value="${escHTML(item.code||'')}"></div>
+      <div class="field"><label>Name</label><input type="text" id="edit-name" value="${escHTML(item.name||'')}"></div>
+      <div class="field"><label>Group</label><select id="edit-group">${groupOptionsHTML(item.group||'')}</select></div>
+      ${hasCashFlow() ? `<div class="field"><label>Cash Flow Statement</label><select id="edit-cashflow">${cashFlowOptionsHTML(item[cashFlowField()]||'')}</select></div>` : ''}
+      <div id="edit-status" class="status-txt"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveEditModal('${key}')">💾 Save</button>
+        <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function closeEditModal() { document.getElementById('edit-overlay')?.remove(); }
+async function saveEditModal(key) {
+  const acct = accountByKey(key);
+  if (!acct) return;
+  const code = document.getElementById('edit-code').value.trim();
+  const name = document.getElementById('edit-name').value.trim();
+  const group = document.getElementById('edit-group').value || null;
+  const status = document.getElementById('edit-status');
+  if (!name) { status.textContent = '⚠ Name is required.'; return; }
+  status.textContent = 'Saving…';
+  try {
+    let value = { ...acct.item, code, name, group };
+    if (hasCashFlow()) value = withCashFlow(value, document.getElementById('edit-cashflow').value);
+    const result = await bulkPutAccounts([{ key, value }]);
+    if (result.failed.length) throw new Error(result.failed[0]);
+    await reloadCurrentTypeAccounts();
+    closeEditModal(); renderReport();
+  } catch (e) { status.textContent = '⚠ ' + e.message; }
+}
+
+function openBulkCashFlowPanel() {
+  ['bulk-number-panel','bulk-group-panel'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+  const panel = document.getElementById('bulk-cashflow-panel');
+  if (!panel) return;
+  const n = tstate().selected.size;
+  panel.innerHTML = `
+    <div class="card" style="background:var(--violet-lt);border-color:#d7cff8;margin-bottom:6px;">
+      <h3>💧 Set Cash Flow Activity for ${n} Selected Account(s)</h3>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="field" style="margin:0;min-width:220px;flex:1;max-width:340px;">
+          <label>Cash Flow Statement</label>
+          <select id="bulk-cashflow-select">${cashFlowOptionsHTML('')}</select>
+        </div>
+        <button class="btn btn-primary" onclick="applyBulkCashFlow()">💾 Apply to ${n} Account(s)</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('bulk-cashflow-panel').innerHTML='';">Cancel</button>
+      </div>
+      <div id="bulk-cashflow-status" class="status-txt"></div>
+    </div>`;
+}
+async function applyBulkCashFlow() {
+  const v = document.getElementById('bulk-cashflow-select').value;
+  const status = document.getElementById('bulk-cashflow-status');
+  const pairs = Array.from(tstate().selected).map(key => {
+    const acct = accountByKey(key);
+    return acct ? { key, value: withCashFlow(acct.item, v) } : null;
+  }).filter(Boolean);
+  const result = await bulkPutAccounts(pairs, (d, t) => { if (status) status.textContent = `Updating… ${d}/${t}`; });
+  if (result.failed.length) { console.warn(result.failed.join('\n')); alert(`${result.failed.length} update(s) failed — see console.`); }
+  await reloadCurrentTypeAccounts();
+  tstate().selected.clear();
+  renderReport();
+}
+function openBulkGroupPanel() {
+  { const el = document.getElementById('bulk-cashflow-panel'); if (el) el.innerHTML = ''; }
+  document.getElementById('bulk-number-panel').innerHTML = '';
+  const panel = document.getElementById('bulk-group-panel');
+  if (!panel) return;
+  const sel = tstate().selected;
+  panel.innerHTML = `
+    <div class="card" style="background:var(--violet-lt);border-color:#d7cff8;margin-bottom:6px;">
+      <h3>🏷️ Change Group for ${sel.size} Selected Account(s)</h3>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="field" style="margin:0;min-width:220px;flex:1;max-width:340px;">
+          <label>New Group</label>
+          <select id="bulk-group-select">
+            <option value="">— Ungrouped —</option>
+            ${(tstate().groups || []).map(g => `<option value="${g.key}">${escHTML(groupPath(g.key) || g?.item?.name || g.key)}</option>`).join('')}
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="applyBulkGroup()">💾 Apply to ${sel.size} Account(s)</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('bulk-group-panel').innerHTML='';">Cancel</button>
+      </div>
+      <div id="bulk-group-status" class="status-txt"></div>
+    </div>`;
+}
+async function applyBulkGroup() {
+  const groupKey = document.getElementById('bulk-group-select').value || null;
+  const status = document.getElementById('bulk-group-status');
+  const sel = tstate().selected;
+  const pairs = Array.from(sel).map(key => {
+    const acct = accountByKey(key);
+    return acct ? { key, value: { ...acct.item, group: groupKey } } : null;
+  }).filter(Boolean);
+  const result = await bulkPutAccounts(pairs, (done, total) => { if (status) status.textContent = `Updating… ${done}/${total}`; });
+  status && (status.textContent = `✓ ${result.ok}/${pairs.length} account(s) moved to "${groupKey ? groupPath(groupKey) : 'Ungrouped'}".` +
+    (result.failed.length ? ` ⚠ ${result.failed.length} failed — see console.` : ''));
+  if (result.failed.length) console.warn(result.failed.join('\n'));
+  await reloadCurrentTypeAccounts();
+  tstate().selected.clear();
+  document.getElementById('bulk-group-panel').innerHTML = '';
+  renderReport();
+}
+
+function openBulkNumberPanel() {
+  document.getElementById('bulk-group-panel').innerHTML = '';
+  const panel = document.getElementById('bulk-number-panel');
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="card" style="background:var(--gold-lt);border-color:#f3dfa8;margin-bottom:12px;">
+      <h3>🔢 Bulk Number ${tstate().selected.size} Selected Account(s)</h3>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+        <div class="field" style="margin:0;min-width:140px;"><label>Starting Number</label><input type="text" id="bn-start" value="1000"></div>
+        <div class="field" style="margin:0;min-width:120px;"><label>Increment</label><input type="text" id="bn-step" value="10"></div>
+        <div class="field" style="margin:0;min-width:120px;"><label>Pad Width</label><input type="text" id="bn-pad" value="0"></div>
+        <div class="field" style="margin:0;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;text-transform:none;"><input type="checkbox" id="bn-per-group" style="width:auto;"> Restart per group</label></div>
+      </div>
+      <button class="btn btn-secondary" onclick="previewBulkNumber()">Preview</button>
+      <div id="bn-preview" style="margin-top:12px;"></div>
+    </div>`;
+}
+function _bulkNumberPlan() {
+  const start = parseInt(document.getElementById('bn-start').value, 10) || 1;
+  const step  = parseInt(document.getElementById('bn-step').value, 10) || 1;
+  const pad   = parseInt(document.getElementById('bn-pad').value, 10) || 0;
+  const perGroup = document.getElementById('bn-per-group')?.checked;
+  const rows = visibleRows().filter(r => tstate().selected.has(r.key));
+  const fmt = n => pad > 0 ? String(n).padStart(pad, '0') : String(n);
+  const plan = [];
+  if (perGroup) {
+    const byGroup = new Map();
+    rows.forEach(r => { if (!byGroup.has(r.group)) byGroup.set(r.group, []); byGroup.get(r.group).push(r); });
+    for (const [, groupRows] of byGroup) { let n = start; groupRows.forEach(r => { plan.push({ ...r, newCode: fmt(n) }); n += step; }); }
+  } else {
+    let n = start; rows.forEach(r => { plan.push({ ...r, newCode: fmt(n) }); n += step; });
+  }
+  return plan;
+}
+function previewBulkNumber() {
+  const plan = _bulkNumberPlan();
+  document.getElementById('bn-preview').innerHTML = `
+    <div class="ok-box">${plan.length} account(s) will be renumbered.</div>
+    <div class="tbl-wrap" style="max-height:260px;overflow-y:auto;"><table><thead><tr><th>Name</th><th>Group</th><th>Old Code</th><th>New Code</th></tr></thead>
+      <tbody>${plan.map(p => `<tr><td>${escHTML(p.name)}</td><td>${escHTML(p.group)}</td><td class="mono">${escHTML(p.code) || '—'}</td><td class="mono" style="color:var(--green);font-weight:700;">${escHTML(p.newCode)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="applyBulkNumber()">💾 Apply Numbering</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('bulk-number-panel').innerHTML='';">Cancel</button>
+    </div>
+    <div id="bn-status" class="status-txt"></div>`;
+}
+async function applyBulkNumber() {
+  const plan = _bulkNumberPlan();
+  const status = document.getElementById('bn-status');
+  const pairs = plan.map(p => { const acct = accountByKey(p.key); return acct ? { key: p.key, value: { ...acct.item, code: p.newCode } } : null; }).filter(Boolean);
+  const result = await bulkPutAccounts(pairs, (done, total) => { if (status) status.textContent = `Updating… ${done}/${total}`; });
+  status && (status.textContent = `✓ ${result.ok}/${pairs.length} renumbered.` + (result.failed.length ? ` ⚠ ${result.failed.length} failed — see console.` : ''));
+  if (result.failed.length) console.warn(result.failed.join('\n'));
+  await reloadCurrentTypeAccounts();
+  tstate().selected.clear();
+  document.getElementById('bulk-number-panel').innerHTML = '';
+  renderReport();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TEMPLATE INSTRUCTION SHEET — shared helper, used by every template
+══════════════════════════════════════════════════════════════════ */
+function addInstructionsSheet(wb, opts) {
+  const ws = wb.addWorksheet('📖 Instructions', { properties: { tabColor: { argb: 'FF6D5BD0' } } });
+  ws.columns = [{ width: 3 }, { width: 100 }];
+  let r = 1;
+  const title = (text) => { ws.getCell(`B${r}`).value = text; ws.getCell(`B${r}`).font = { bold: true, size: 14, color: { argb: 'FF4F3FB0' } }; r += 2; };
+  const heading = (text) => { ws.getCell(`B${r}`).value = text; ws.getCell(`B${r}`).font = { bold: true, size: 11.5, color: { argb: 'FF181C2E' } }; r += 1; };
+  const line = (text) => { ws.getCell(`B${r}`).value = text; ws.getCell(`B${r}`).font = { size: 10.5 }; ws.getCell(`B${r}`).alignment = { wrapText: true }; r += 1; };
+  const gap = () => { r += 1; };
+
+  title(opts.title);
+  opts.intro.forEach(line);
+  gap();
+  heading('Columns in this sheet');
+  opts.columns.forEach(c => line(`•  ${c}`));
+  gap();
+  if (opts.rules && opts.rules.length) {
+    heading('Rules & tips');
+    opts.rules.forEach(x => line(`•  ${x}`));
+    gap();
+  }
+  heading('What happens when you import');
+  line('1.  Every row is matched against your existing accounts by Code.');
+  line('2.  A Code that already exists is UPDATED — its Name/Group/Control Account are refreshed to match this file.');
+  line('3.  A new Code is CREATED as a new account.');
+  line('4.  You will see a preview with a "create" or "update" tag on every row before anything is sent — nothing happens until you click Import.');
+  line('5.  It is always safe to re-run the same file again later (e.g. after fixing a typo).');
+  gap();
+  if (opts.otherSheets && opts.otherSheets.length) {
+    heading('Other sheets in this workbook');
+    opts.otherSheets.forEach(x => line(`•  ${x}`));
+  }
+  ws.views = [{ showGridLines: false }];
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   P&L / BALANCE SHEET — BULK IMPORT (with upsert-by-code)
+══════════════════════════════════════════════════════════════════ */
+function renderImportTab() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="card">
+      <h2 style="margin-bottom:10px;">📥 Bulk Import ${escHTML(ctx().label)} Accounts from Excel</h2>
+      <div class="info-box">Columns: <strong>Code</strong>, <strong>Name</strong>, <strong>Group</strong>${hasCashFlow() ? ', <strong>Cash Flow Activity</strong> (Operating / Investing / Financing)' : ''}. Re-importing a file with a Code that already exists <strong>updates</strong> that account instead of creating a duplicate. Full instructions are in the downloaded template's first sheet.</div>
+      <div class="btn-row" style="margin-top:0;margin-bottom:14px;"><button class="btn btn-secondary" onclick="downloadTemplate()">⬇ Download Template</button></div>
+      <div class="field"><label>Excel file (.xlsx)</label><input type="file" id="import-file" accept=".xlsx"></div>
+      <div id="import-preview"></div>
+      <div class="btn-row"><button class="btn btn-primary" id="import-btn" onclick="runImport()" disabled>Import</button></div>
+      <div id="import-status" class="status-txt"></div>
+    </div>`;
+  document.getElementById('import-file').addEventListener('change', previewFile);
+}
+async function downloadTemplate() {
+  const wb = new ExcelJS.Workbook();
+  const label = ctx().label;
+  addInstructionsSheet(wb, {
+    title: `${label} — Bulk Import Guide`,
+    intro: [
+      `This workbook imports ${label} accounts into your Manager.io chart of accounts.`,
+      `Every Group name you use below must already exist in Manager (Settings → Chart of Accounts) — this sheet cannot create groups, only accounts inside them.`,
+    ],
+    columns: [
+      'Code — the account code (e.g. "5010"). Required.',
+      'Name — the account name (e.g. "Office Rent"). Required.',
+      'Group — which group this account belongs to. Must exactly match a name from the "Valid Groups" sheet. Leave blank to import ungrouped.',
+      ...(hasCashFlow() ? ['Cash Flow Activity — Operating, Investing or Financing (pick from the dropdown). Leave blank to keep the existing value (new accounts default to Operating).'] : []),
+    ],
+    rules: [
+      'Group names are matched case-insensitively, but must otherwise match exactly — copy them from the "Valid Groups" sheet rather than retyping.',
+      'New accounts are added after your existing accounts, sorted by Code.',
+    ],
+    otherSheets: ['"Accounts" — put your data here, starting row 2.', '"Valid Groups (reference)" — every group name currently in your business.'],
+  });
+  const ws = wb.addWorksheet('Accounts');
+  ws.columns = [{ header: 'Code', key: 'code', width: 14 }, { header: 'Name', key: 'name', width: 42 }, { header: 'Group', key: 'group', width: 32 },
+    ...(hasCashFlow() ? [{ header: 'Cash Flow Activity', key: 'cashflow', width: 24 }] : [])];
+  if (hasCashFlow()) {
+    for (let i = 2; i <= 1000; i++) ws.getCell(`D${i}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Operating,Investing,Financing"'] };
+  }
+  const groups = tstate().groups || [];
+  const sampleGroup = groups[0] ? (groupPath(groups[0].key) || groups[0].item.name) : (State.currentType === 'pl' ? 'Operating Expenses' : 'Current Assets');
+  ws.addRow({ code: '5010', name: State.currentType === 'pl' ? 'Office Rent' : 'Petty Cash', group: sampleGroup, ...(hasCashFlow() ? { cashflow: 'Operating' } : {}) });
+  const wsG = wb.addWorksheet('Valid Groups (reference)');
+  wsG.columns = [{ header: 'Group name — copy exactly into the "Group" column', key: 'g', width: 50 }];
+  groups.forEach(g => wsG.addRow({ g: groupPath(g.key) || g?.item?.name || '' }));
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${State.currentType}-chart-of-accounts-import-template.xlsx`; a.click();
+  URL.revokeObjectURL(url);
+}
+async function previewFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const buf = await file.arrayBuffer();
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+  const ws = wb.getWorksheet('Accounts') || wb.worksheets[0];
+  const headerRow = ws.getRow(1).values.map(v => (v||'').toString().trim().toLowerCase());
+  const idxCode = headerRow.indexOf('code'), idxName = headerRow.indexOf('name'), idxGroup = headerRow.indexOf('group');
+  const idxCF = headerRow.findIndex(h => /cash.?flow/.test(h));
+  if (idxCode < 0 || idxName < 0) { alert('The file must have "Code" and "Name" columns.'); return; }
+  const groupIdx = new Map();
+  (tstate().groups || []).forEach(g => {
+    const path = (groupPath(g.key) || g?.item?.name || '').trim().toLowerCase();
+    const nm   = (g?.item?.name || '').trim().toLowerCase();
+    if (path) groupIdx.set(path, g.key);
+    if (nm)   groupIdx.set(nm, g.key);
+  });
+  const existingByCode = new Map();
+  (tstate().accounts||[]).forEach(a => { const c = String(a?.item?.code||'').trim().toLowerCase(); if (c) existingByCode.set(c, a); });
+
+  const rowsMap = new Map();
+  const errors = [];
+  ws.eachRow((row, num) => {
+    if (num === 1) return;
+    const code = (row.values[idxCode] ?? '').toString().trim();
+    const name = (row.values[idxName] ?? '').toString().trim();
+    const gRaw = idxGroup >= 0 ? (row.values[idxGroup] ?? '').toString().trim() : '';
+    if (!code && !name) return;
+    if (!code || !name) { errors.push(`Row ${num}: missing Code or Name — skipped.`); return; }
+    let groupKey = null;
+    if (gRaw) { groupKey = groupIdx.get(gRaw.toLowerCase()) || null; if (!groupKey) errors.push(`Row ${num}: group "${gRaw}" not found — ungrouped.`); }
+    let cashflow, cfSet = false;
+    if (hasCashFlow() && idxCF >= 0) {
+      const cfRaw = (row.values[idxCF] ?? '').toString().trim();
+      const p = parseCashFlow(cfRaw);
+      if (!p.ok) errors.push(`Row ${num}: cash flow "${cfRaw}" not recognised — left blank.`);
+      cashflow = p.value; cfSet = p.value !== null;
+    }
+    if (rowsMap.has(code.toLowerCase())) errors.push(`Row ${num}: duplicate code "${code}" within this file — using the last occurrence.`);
+    const existing = existingByCode.get(code.toLowerCase());
+    rowsMap.set(code.toLowerCase(), { code, name, groupKey, cashflow, cfSet, rowNum: num, action: existing ? 'update' : 'create', existingKey: existing?.key, existingItem: existing?.item });
+  });
+  const rows = Array.from(rowsMap.values());
+  rows.sort((a,b) => naturalCodeCompare(a.code, b.code));
+  tstate().parsedImportRows = rows;
+  const preview = document.getElementById('import-preview');
+  const groupCount = (tstate().groups || []).length;
+  const creates = rows.filter(r=>r.action==='create').length, updates = rows.filter(r=>r.action==='update').length;
+  preview.innerHTML = `
+    <div class="ok-box">Parsed ${rows.length} account(s) — <strong>${creates} to create</strong>, <strong>${updates} to update</strong>. (${groupCount} group name(s) available to match.)</div>
+    ${errors.length ? `<div class="err-box">${errors.length} warning(s):<br>${errors.slice(0,20).map(escHTML).join('<br>')}${errors.length>20?'<br>…':''}</div>` : ''}
+    <div class="tbl-wrap" style="max-height:260px;overflow-y:auto;"><table><thead><tr><th>#</th><th>Code</th><th>Name</th><th>Group</th>${hasCashFlow() ? '<th>Cash Flow</th>' : ''}<th>Action</th></tr></thead>
+      <tbody>${rows.slice(0,50).map((r,i)=>`<tr><td>${i+1}</td><td class="mono">${escHTML(r.code)}</td><td>${escHTML(r.name)}</td><td>${r.groupKey ? escHTML(groupPath(r.groupKey)) : '<em>Ungrouped</em>'}</td>${hasCashFlow() ? `<td>${r.cfSet ? escHTML(cashFlowLabel(r.cashflow)) : '<em>unchanged</em>'}</td>` : ''}<td><span class="upsert-tag upsert-${r.action}">${r.action}</span></td></tr>`).join('')}</tbody>
+    </table></div>`;
+  document.getElementById('import-btn').disabled = rows.length === 0;
+}
+async function runImport() {
+  const rows = tstate().parsedImportRows; if (!rows || !rows.length) return;
+  const status = document.getElementById('import-status');
+  const btn = document.getElementById('import-btn'); btn.disabled = true;
+  const CHUNK = 200;
+  try {
+    const creates = rows.filter(r => r.action === 'create');
+    const updates = rows.filter(r => r.action === 'update');
+
+    let updated = 0; const updateFailed = [];
+    if (updates.length) {
+      status.textContent = `Updating ${updates.length} existing account(s)…`;
+      const pairs = updates.map(r => {
+        let value = { ...r.existingItem, code: r.code, name: r.name, group: r.groupKey || null };
+        if (hasCashFlow() && r.cfSet) value = withCashFlow(value, r.cashflow);
+        return { key: r.existingKey, value };
+      });
+      const result = await bulkPutAccounts(pairs, (done, total) => { status.textContent = `Updating… ${done}/${total}`; });
+      updated = result.ok; updateFailed.push(...result.failed);
+    }
+
+    const existingMaxPos = Math.max(0, ...(tstate().accounts||[]).map(a => Number(a?.item?.position ?? 0)));
+    creates.forEach((r, i) => { r._pos = existingMaxPos + 1 + i; });
+    let created = 0; const createFailed = [];
+    for (let i = 0; i < creates.length; i += CHUNK) {
+      const chunk = creates.slice(i, i + CHUNK);
+      const values = chunk.map(r => {
+        const v = { name: r.name, code: r.code, group: r.groupKey || null, position: r._pos, inactive: false };
+        return (hasCashFlow() && r.cashflow !== null && r.cashflow !== undefined) ? withCashFlow(v, r.cashflow) : v;
+      });
+      try { status.textContent = `Creating ${i+1}–${i+chunk.length} of ${creates.length}…`; await apiCall('POST', ctx().batchPostEp, { values }); created += chunk.length; }
+      catch (e) { createFailed.push(`Rows ${i+1}-${i+chunk.length}: ${e.message}`); }
+    }
+    const failed = [...updateFailed, ...createFailed];
+    status.innerHTML = `✓ Created ${created}/${creates.length}, updated ${updated}/${updates.length}.` + (failed.length ? `<br><span style="color:var(--red);">⚠ ${failed.map(escHTML).join('<br>')}</span>` : '');
+    if (failed.length) console.warn(failed.join('\n'));
+    await reloadCurrentTypeAccounts();
+    document.getElementById('import-preview').innerHTML = '';
+    tstate().parsedImportRows = null;
+    document.getElementById('import-file').value = '';
+    btn.disabled = true;
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--red);">⚠ Unexpected error: ${escHTML(err.message||String(err))}</span>`;
+    console.error('runImport failed:', err);
+    btn.disabled = false;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SUBSIDIARY ACCOUNTS — combined report + import across all types
+══════════════════════════════════════════════════════════════════ */
+function allCaKeysNeeded() {
+  const keys = new Set();
+  SUBSIDIARY_TYPES.forEach(t => t.controlAccountFields.forEach(f => keys.add(f.caKey)));
+  return Array.from(keys);
+}
+async function ensureSubsidiaryLoaded() {
+  if (State.subsidiary.loaded || State.subsidiary.loading) return;
+  State.subsidiary.loading = true;
+  await Promise.all([
+    ...SUBSIDIARY_TYPES.map(t => loadSubType(t.key)),
+    ...allCaKeysNeeded().map(k => loadCAType(k)),
+  ]);
+  State.subsidiary.loading = false;
+  State.subsidiary.loaded = true;
+}
+function caLabelByKey(caKey, uuid) {
+  if (!uuid) return null;
+  const acc = (caState(caKey).accounts || []).find(a => a.key === uuid);
+  return acc ? (acc.item?.name || acc.item?.text || uuid.slice(0,8)+'…') : `(unknown: ${uuid.slice(0,8)}…)`;
+}
+function controlAccountsSummary(type, item) {
+  const parts = type.controlAccountFields.map(f => {
+    const uuid = item?.[f.field];
+    const label = caLabelByKey(f.caKey, uuid);
+    return label ? (type.controlAccountFields.length > 1 ? `${f.label.replace('Control Account ','').replace(/[()]/g,'')}: ${label}` : label) : null;
+  }).filter(Boolean);
+  return parts.length ? parts.join(' | ') : '— None —';
+}
+function subsidiaryRows() {
+  const rows = [];
+  SUBSIDIARY_TYPES.forEach(t => {
+    (subState(t.key).accounts || []).filter(a => !a?.item?.inactive).forEach(a => {
+      rows.push({
+        typeKey: t.key, typeLabel: t.label, key: a.key,
+        code: a?.item?.[t.codeField] || '', name: a?.item?.[t.nameField] || '',
+        controlAccount: controlAccountsSummary(t, a?.item),
+      });
+    });
+  });
+  return rows;
+}
+function subsidiaryVisibleRows() {
+  let rows = subsidiaryRows();
+  const q = (State.subsidiary.search || '').toLowerCase().trim();
+  if (q) rows = rows.filter(r => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.typeLabel.toLowerCase().includes(q) || r.controlAccount.toLowerCase().includes(q));
+  if (State.subsidiary.typeFilter) rows = rows.filter(r => r.typeKey === State.subsidiary.typeFilter);
+  const { field, dir } = State.subsidiary.sort;
+  rows.sort((a,b) => {
+    const cmp = field === 'code' ? naturalCodeCompare(a.code,b.code) : String(a[field]||'').localeCompare(String(b[field]||''));
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return rows;
+}
+function subsidiaryTypeFilterOptionsHTML() {
+  return `<option value="">All types</option>` + SUBSIDIARY_TYPES.map(t => `<option value="${t.key}" ${State.subsidiary.typeFilter===t.key?'selected':''}>${escHTML(t.label)}</option>`).join('');
+}
+async function renderSubsidiaryReport() {
+  const app = document.getElementById('app');
+  if (!State.subsidiary.loaded) {
+    app.innerHTML = `<div class="card"><div class="empty">Loading Subsidiary Accounts (Customers, Suppliers, Bank/Cash, etc.)…</div></div>`;
+    try {
+      await ensureSubsidiaryLoaded();
+      if (State.currentType === 'subsidiary' && State.currentTab === 'report') renderSubsidiaryReportInner();
+    } catch (err) {
+      app.innerHTML = `<div class="card"><div class="err-box">⚠ Failed to load Subsidiary Accounts: ${escHTML(err.message||String(err))}</div></div>`;
+      console.error('renderSubsidiaryReport failed:', err);
+    }
+    return;
+  }
+  try { renderSubsidiaryReportInner(); }
+  catch (err) {
+    app.innerHTML = `<div class="card"><div class="err-box">⚠ Failed to render: ${escHTML(err.message||String(err))}</div></div>`;
+    console.error('renderSubsidiaryReportInner failed:', err);
+  }
+}
+function renderSubsidiaryReportInner() {
+  const app = document.getElementById('app');
+  const rows = subsidiaryVisibleRows();
+  const sel = State.subsidiary.selected;
+  const allChecked = rows.length > 0 && rows.every(r => sel.has(r.typeKey + '::' + r.key));
+  const errors = SUBSIDIARY_TYPES.filter(t => subState(t.key).error).map(t => ({ label: t.label, ep: t.batchEp, message: subState(t.key).error, confirmed: t.confirmed }));
+  const th = (label, f) => {
+    const active = State.subsidiary.sort.field === f;
+    const arrow = active ? (State.subsidiary.sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    return `<th style="cursor:pointer;" onclick="subsidiarySetSort('${f}')">${label}${arrow}</th>`;
+  };
+  app.innerHTML = `
+    <div class="card">
+      ${errors.length ? `<div class="err-box">${errors.map(e=>`<strong>${escHTML(e.label)}</strong>${e.confirmed?'':' (unconfirmed)'} (<code>${escHTML(e.ep)}</code>): ${escHTML(e.message)}`).join('<br>')}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0;">
+          <h2 style="white-space:nowrap;">Subsidiary <span class="badge">${rows.length}</span></h2>
+          <input type="text" style="flex:1;min-width:140px;max-width:260px;" placeholder="🔍 Search…" value="${escHTML(State.subsidiary.search||'')}"
+            oninput="State.subsidiary.search=this.value; renderSubsidiaryReportInner();">
+          <select style="max-width:220px;" onchange="State.subsidiary.typeFilter=this.value; renderSubsidiaryReportInner();">${subsidiaryTypeFilterOptionsHTML()}</select>
+          ${sel.size ? `<button class="btn btn-secondary" onclick="State.subsidiary.selected.clear(); renderSubsidiaryReportInner();">Clear (${sel.size})</button>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary" onclick="openSubBulkEditPanel()" ${sel.size ? '' : 'disabled'}>🏷️ Change Control Account (${sel.size})</button>
+          <button class="btn btn-secondary" onclick="reloadSubsidiary()">↺ Reload</button>
+          <button class="btn btn-secondary" onclick="switchTab('import')">📥 Import</button>
+        </div>
+      </div>
+      <div id="sub-bulk-edit-panel"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:26px;"><input type="checkbox" ${allChecked?'checked':''} onchange="subsidiaryToggleAll(this.checked)"></th>
+            ${th('Code','code')}${th('Type','typeLabel')}${th('Name','name')}${th('Control Account','controlAccount')}<th style="width:60px;">Actions</th></tr></thead>
+          <tbody>
+            ${rows.length ? rows.map(r => `<tr>
+              <td><input type="checkbox" ${sel.has(r.typeKey+'::'+r.key)?'checked':''} onchange="subsidiaryToggleRow('${r.typeKey}','${r.key}', this.checked)"></td>
+              <td class="mono">${escHTML(r.code) || '—'}</td>
+              <td><span class="type-tag">${escHTML(r.typeLabel)}</span></td>
+              <td>${escHTML(r.name) || '—'}</td>
+              <td>${escHTML(r.controlAccount)}</td>
+              <td><button class="btn-action" onclick="openSubEditModal('${r.typeKey}','${r.key}')">Edit</button></td>
+            </tr>`).join('') : `<tr><td colspan="6" class="empty">No subsidiary account records found.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+function subsidiarySetSort(field) {
+  if (State.subsidiary.sort.field === field) State.subsidiary.sort.dir = State.subsidiary.sort.dir === 'asc' ? 'desc' : 'asc';
+  else State.subsidiary.sort = { field, dir: 'asc' };
+  renderSubsidiaryReportInner();
+}
+function subsidiaryToggleRow(typeKey, key, checked) {
+  const k = typeKey + '::' + key;
+  if (checked) State.subsidiary.selected.add(k); else State.subsidiary.selected.delete(k);
+  renderSubsidiaryReportInner();
+}
+function subsidiaryToggleAll(checked) {
+  const rows = subsidiaryVisibleRows();
+  rows.forEach(r => { const k = r.typeKey + '::' + r.key; if (checked) State.subsidiary.selected.add(k); else State.subsidiary.selected.delete(k); });
+  renderSubsidiaryReportInner();
+}
+function openSubBulkEditPanel() {
+  const panel = document.getElementById('sub-bulk-edit-panel');
+  if (!panel) return;
+  const byType = new Map();
+  Array.from(State.subsidiary.selected).forEach(k => {
+    const [typeKey, accKey] = k.split('::');
+    if (!byType.has(typeKey)) byType.set(typeKey, []);
+    byType.get(typeKey).push(accKey);
+  });
+  panel.innerHTML = `
+    <div class="card" style="background:var(--violet-lt);border-color:#d7cff8;">
+      <h3>🏷️ Change Control Account</h3>
+      <div class="status-txt" style="margin-top:0;margin-bottom:8px;">Selection spans ${byType.size} type(s) — set each one separately. Leave a dropdown on "— Leave unchanged —" to skip that field.</div>
+      ${Array.from(byType.entries()).map(([typeKey, keys]) => {
+        const type = subType(typeKey);
+        return `<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;">
+          <div style="font-weight:800;font-size:12px;margin-bottom:8px;">${escHTML(type.label)} <span class="badge">${keys.length} selected</span></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+            ${type.controlAccountFields.map((f,i) => `
+              <div class="field" style="margin:0;min-width:200px;flex:1;max-width:300px;">
+                <label>${escHTML(f.label)}</label>
+                <select id="bulk-ca-${typeKey}-${i}">
+                  <option value="__unchanged__">— Leave unchanged —</option>
+                  <option value="">— None —</option>
+                  ${(caState(f.caKey).accounts||[]).map(a => `<option value="${a.key}">${escHTML(a.item?.name || a.item?.text || a.key)}</option>`).join('')}
+                </select>
+              </div>`).join('')}
+            <button class="btn btn-primary" onclick='applySubBulkEdit(${JSON.stringify(typeKey)}, ${JSON.stringify(keys)})'>💾 Apply to ${keys.length}</button>
+          </div>
+        </div>`;
+      }).join('')}
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="document.getElementById('sub-bulk-edit-panel').innerHTML='';">Close</button>
+      </div>
+      <div id="sub-bulk-edit-status" class="status-txt"></div>
+    </div>`;
+}
+async function applySubBulkEdit(typeKey, keys) {
+  const type = subType(typeKey);
+  const status = document.getElementById('sub-bulk-edit-status');
+  const updates = {};
+  let anyChange = false;
+  type.controlAccountFields.forEach((f, i) => {
+    const val = document.getElementById(`bulk-ca-${typeKey}-${i}`).value;
+    if (val !== '__unchanged__') { updates[f.field] = val || null; anyChange = true; }
+  });
+  if (!anyChange) { if (status) status.textContent = '⚠ Nothing to change — every field is set to "Leave unchanged".'; return; }
+
+  let ok = 0; const failed = [];
+  for (const accKey of keys) {
+    const acct = (subState(typeKey).accounts || []).find(a => a.key === accKey);
+    if (!acct) continue;
+    if (status) status.textContent = `Updating ${type.label}… ${ok + failed.length}/${keys.length}`;
+    try {
+      await apiCall('PUT', subSingleEp(typeKey), { key: accKey, value: { ...acct.item, ...updates } });
+      ok++;
+    } catch (e) { failed.push(`${acct.item?.[type.nameField] || accKey}: ${e.message}`); }
+  }
+  status && (status.textContent = `✓ ${ok}/${keys.length} ${type.label} account(s) updated.` + (failed.length ? ` ⚠ ${failed.length} failed — see console.` : ''));
+  if (failed.length) console.warn(failed.join('\n'));
+
+  await loadSubType(typeKey);
+  keys.forEach(k => State.subsidiary.selected.delete(typeKey + '::' + k));
+  if (State.subsidiary.selected.size === 0) document.getElementById('sub-bulk-edit-panel').innerHTML = '';
+  else openSubBulkEditPanel();
+  renderSubsidiaryReportInner();
+}
+async function reloadSubsidiary() {
+  State.subsidiary.loaded = false;
+  await ensureSubsidiaryLoaded();
+  if (State.currentType === 'subsidiary') { State.currentTab === 'import' ? renderSubsidiaryImportTab() : renderSubsidiaryReportInner(); }
+}
+
+function caOptionsHTML(caKey, selected) {
+  const list = caState(caKey).accounts || [];
+  const opts = ['<option value="">— None —</option>'];
+  list.forEach(a => opts.push(`<option value="${a.key}" ${a.key===selected?'selected':''}>${escHTML(a.item?.name || a.item?.text || a.key)}</option>`));
+  return opts.join('');
+}
+function openSubEditModal(typeKey, accKey) {
+  const type = subType(typeKey);
+  const acct = (subState(typeKey).accounts || []).find(a => a.key === accKey);
+  if (!acct) return;
+  const item = acct.item || {};
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open'; overlay.id = 'sub-edit-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('sub-edit-overlay').remove()">✕</button>
+      <h3 style="margin-bottom:14px;">Edit ${escHTML(type.label)} Account</h3>
+      <div class="field"><label>Code</label><input type="text" id="sub-edit-code" value="${escHTML((item[type.codeField]||'').toString())}"></div>
+      <div class="field"><label>Name</label><input type="text" id="sub-edit-name" value="${escHTML((item[type.nameField]||'').toString())}"></div>
+      ${type.controlAccountFields.map((f,i) => `
+        <div class="field"><label>${escHTML(f.label)}</label><select id="sub-edit-ca-${i}">${caOptionsHTML(f.caKey, item[f.field]||'')}</select></div>
+      `).join('')}
+      <div id="sub-edit-status" class="status-txt"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveSubEditModal('${typeKey}','${accKey}')">💾 Save</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('sub-edit-overlay').remove()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+async function saveSubEditModal(typeKey, accKey) {
+  const type = subType(typeKey);
+  const acct = (subState(typeKey).accounts || []).find(a => a.key === accKey);
+  if (!acct) return;
+  const code = document.getElementById('sub-edit-code').value.trim();
+  const name = document.getElementById('sub-edit-name').value.trim();
+  const status = document.getElementById('sub-edit-status');
+  if (!name) { status.textContent = '⚠ Name is required.'; return; }
+  const value = { ...acct.item, [type.codeField]: code, [type.nameField]: name };
+  type.controlAccountFields.forEach((f, i) => { value[f.field] = document.getElementById(`sub-edit-ca-${i}`).value || null; });
+  status.textContent = 'Saving…';
+  try {
+    await apiCall('PUT', subSingleEp(typeKey), { key: accKey, value });
+    await loadSubType(typeKey);
+    document.getElementById('sub-edit-overlay').remove();
+    renderSubsidiaryReportInner();
+  } catch (e) {
+    status.textContent = '⚠ ' + e.message + ' — single PUT for this type is unconfirmed.';
+  }
+}
+
+/* ---- Subsidiary Accounts — single unified Bulk Import sheet with upsert-by-code ---- */
+function renderSubsidiaryImportTab() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="card">
+      <h2 style="margin-bottom:10px;">📥 Bulk Import Subsidiary Accounts</h2>
+      <div class="info-box">
+        One sheet, any mix of types. Full column-by-column instructions are in the downloaded template's
+        first sheet. Re-importing a file with a Code that already exists for that Type
+        <strong>updates</strong> that account instead of creating a duplicate.
+      </div>
+      <div class="btn-row" style="margin-top:0;margin-bottom:14px;"><button class="btn btn-secondary" onclick="downloadSubsidiaryTemplate()">⬇ Download Template</button></div>
+      <div class="field"><label>Excel file (.xlsx)</label><input type="file" id="sub-import-file" accept=".xlsx"></div>
+      <div id="sub-import-preview"></div>
+      <div class="btn-row"><button class="btn btn-primary" id="sub-import-btn" onclick="runSubsidiaryImport()" disabled>Import</button></div>
+      <div id="sub-import-status" class="status-txt"></div>
+    </div>`;
+  document.getElementById('sub-import-file').addEventListener('change', subPreviewFile);
+}
+async function downloadSubsidiaryTemplate() {
+  await ensureSubsidiaryLoaded();
+  const wb = new ExcelJS.Workbook();
+  addInstructionsSheet(wb, {
+    title: 'Subsidiary Accounts — Bulk Import Guide',
+    intro: [
+      'This workbook imports the detailed lists behind a Control Account: Customers, Suppliers, Bank and Cash Accounts, Employees, Fixed Assets, Intangible Assets, Inventory Items, Capital Accounts, Investments, and Special Accounts — all from one sheet.',
+      'Before importing: each Type needs at least one Control Account "bucket" already created in Manager (Settings → Control Accounts). This sheet fills in the accounts under a bucket — it does not create the bucket itself (except for the two special Accum. Depreciation/Amortization types below).',
+    ],
+    columns: [
+      'Code — the account code. Required.',
+      'Name — the account name. Required.',
+      'Type — which account type this row is. Must exactly match a name from the "Valid Types" sheet.',
+      'Control Account 1 — for most types, a Control Account bucket name (see "Valid Control Accounts" sheet). For the two special bucket types below, this is instead a BALANCE SHEET GROUP name (see "Valid Groups" sheet).',
+      'Control Account 2 — ONLY used by Fixed Assets and Intangible Assets, for their Accum. Depreciation / Accum. Amortization bucket. Leave blank for every other type.',
+    ],
+    rules: [
+      'Fixed Assets and Intangible Assets each need TWO buckets to exist before you import them — if you don\'t have those buckets yet, import rows with Type = "Fixed Assets — Accum. Depreciation" or "Intangible Assets — Accum. Amortization" FIRST (in the same file, or a separate one run first), THEN import the Fixed Assets / Intangible Assets rows that reference them.',
+      'Control Account and Group names are matched case-insensitively but must otherwise match exactly — copy them from the reference sheets rather than retyping.',
+      'Only Customers, Bank and Cash Accounts, Fixed Assets, and Inventory Items are confirmed against Manager\'s official API docs. The rest use the same naming pattern but haven\'t been independently confirmed — test a few rows first if you\'re unsure.',
+    ],
+    otherSheets: [
+      '"Subsidiary Accounts" — put your data here, starting row 2.',
+      '"Valid Types" — every Type value you can use, and whether it needs a second Control Account.',
+      '"Valid Control Accounts" — every real Control Account bucket name in your business, per Type.',
+      '"Valid Groups (for bucket types)" — Balance Sheet group names, used only by the two Accum. Depreciation/Amortization Types.',
+    ],
+  });
+
+  const ws = wb.addWorksheet('Subsidiary Accounts');
+  ws.columns = [
+    { header: 'Code', key: 'code', width: 14 }, { header: 'Name', key: 'name', width: 42 },
+    { header: 'Type', key: 'type', width: 22 }, { header: 'Control Account 1', key: 'ca1', width: 34 },
+    { header: 'Control Account 2', key: 'ca2', width: 34 },
+  ];
+  const sampleType = SUBSIDIARY_TYPES[0];
+  const sampleCA = (caState(sampleType.controlAccountFields[0].caKey).accounts||[])[0]?.item?.name || '';
+  ws.addRow({ code: '1001', name: 'Sample Customer', type: sampleType.label, ca1: sampleCA, ca2: '' });
+  const sampleGroup = (State.data.bs.groups||[])[0]?.item?.name || '';
+  ws.addRow({ code: '2810', name: 'Sample Accum. Depreciation Bucket', type: BUCKET_ROW_TYPES[0].label, ca1: sampleGroup, ca2: '' });
+
+  const wsT = wb.addWorksheet('Valid Types');
+  wsT.columns = [
+    { header: 'Type name — copy exactly into the "Type" column', key: 't', width: 42 },
+    { header: 'Control Account 1 is…', key: 'c1', width: 42 },
+    { header: 'Uses Control Account 2?', key: 'u', width: 24 },
+  ];
+  SUBSIDIARY_TYPES.forEach(t => wsT.addRow({ t: t.label, c1: 'a Control Account bucket name', u: t.controlAccountFields.length > 1 ? 'Yes — a Control Account bucket name' : 'No' }));
+  BUCKET_ROW_TYPES.forEach(t => wsT.addRow({ t: t.label, c1: 'a Balance Sheet GROUP name (not a Control Account)', u: 'No' }));
+
+  const wsCA = wb.addWorksheet('Valid Control Accounts');
+  wsCA.columns = [{ header: 'Type', key: 't', width: 24 }, { header: 'Field', key: 'f', width: 34 }, { header: 'Control Account name', key: 'g', width: 45 }];
+  SUBSIDIARY_TYPES.forEach(t => t.controlAccountFields.forEach(f => {
+    (caState(f.caKey).accounts||[]).forEach(b => wsCA.addRow({ t: t.label, f: f.label, g: b?.item?.name || b?.item?.text || '' }));
+  }));
+
+  const wsG = wb.addWorksheet('Valid Groups (for bucket types)');
+  wsG.columns = [{ header: 'Group name — for Fixed/Intangible Accum. rows\' "Control Account 1" column', key: 'g', width: 55 }];
+  (State.data.bs.groups||[]).forEach(g => wsG.addRow({ g: pathFromGroupList(State.data.bs.groups, g.key) || g?.item?.name || '' }));
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'subsidiary-accounts-import-template.xlsx'; a.click();
+  URL.revokeObjectURL(url);
+}
+async function subPreviewFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const preview = document.getElementById('sub-import-preview');
+  preview.innerHTML = `<div class="status-txt">Reading file…</div>`;
+  try {
+    await ensureSubsidiaryLoaded();
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+    const ws = wb.getWorksheet('Subsidiary Accounts') || wb.worksheets[0];
+    const headerRow = ws.getRow(1).values.map(v => (v||'').toString().trim().toLowerCase());
+    const idxCode = headerRow.indexOf('code'), idxName = headerRow.indexOf('name'), idxType = headerRow.indexOf('type');
+    const idxCA1 = headerRow.findIndex(h => (h||'').includes('control account 1'));
+    const idxCA2 = headerRow.findIndex(h => (h||'').includes('control account 2'));
+    const idxCAgeneric = headerRow.findIndex(h => (h||'') === 'control account');
+    const ca1Col = idxCA1 >= 0 ? idxCA1 : idxCAgeneric;
+    if (idxCode < 0 || idxName < 0 || idxType < 0) { alert('The file must have "Code", "Name" and "Type" columns.'); preview.innerHTML=''; return; }
+
+    const typeIdx = new Map(SUBSIDIARY_TYPES.map(t => [t.label.toLowerCase(), t.key]));
+    SUBSIDIARY_TYPES.forEach(t => typeIdx.set(t.key.toLowerCase(), t.key));
+    const bucketTypeIdx = new Map(BUCKET_ROW_TYPES.map(t => [t.label.toLowerCase(), t.key]));
+    BUCKET_ROW_TYPES.forEach(t => bucketTypeIdx.set(t.key.toLowerCase(), t.key));
+
+    const groupIdxMap = new Map();
+    (State.data.bs.groups || []).forEach(g => {
+      const path = (pathFromGroupList(State.data.bs.groups, g.key) || g?.item?.name || '').trim().toLowerCase();
+      const nm = (g?.item?.name || '').trim().toLowerCase();
+      if (path) groupIdxMap.set(path, g.key);
+      if (nm) groupIdxMap.set(nm, g.key);
+    });
+
+    const rowsMap = new Map();
+    const errors = [];
+    ws.eachRow((row, num) => {
+      if (num === 1) return;
+      const code = (row.values[idxCode] ?? '').toString().trim();
+      const name = (row.values[idxName] ?? '').toString().trim();
+      const typeRaw = (row.values[idxType] ?? '').toString().trim();
+      const ca1Raw = ca1Col >= 0 ? (row.values[ca1Col] ?? '').toString().trim() : '';
+      const ca2Raw = idxCA2 >= 0 ? (row.values[idxCA2] ?? '').toString().trim() : '';
+      if (!code && !name && !typeRaw) return;
+      if (!code || !name || !typeRaw) { errors.push(`Row ${num}: missing Code, Name or Type — skipped.`); return; }
+
+      const bucketKey = bucketTypeIdx.get(typeRaw.toLowerCase());
+      if (bucketKey) {
+        let groupKey = null;
+        if (ca1Raw) { groupKey = groupIdxMap.get(ca1Raw.toLowerCase()) || null; if (!groupKey) errors.push(`Row ${num}: group "${ca1Raw}" not found for ${bucketRowType(bucketKey).label} — will import ungrouped.`); }
+        const dedupeKey = 'bucket:' + bucketKey + '||' + code.toLowerCase();
+        if (rowsMap.has(dedupeKey)) errors.push(`Row ${num}: duplicate ${bucketRowType(bucketKey).label} code "${code}" within this file — using the last occurrence.`);
+        const existing = (caState(bucketKey).accounts || []).find(a => String(a?.item?.code || '').trim().toLowerCase() === code.toLowerCase());
+        rowsMap.set(dedupeKey, { code, name, mode: 'bucket', typeKey: bucketKey, groupKey, action: existing ? 'update' : 'create', existingKey: existing?.key, existingItem: existing?.item });
+        return;
+      }
+
+      const typeKey = typeIdx.get(typeRaw.toLowerCase());
+      if (!typeKey) { errors.push(`Row ${num}: type "${typeRaw}" not recognized — skipped. Valid: ${[...SUBSIDIARY_TYPES.map(t=>t.label), ...BUCKET_ROW_TYPES.map(t=>t.label)].join(', ')}`); return; }
+      const type = subType(typeKey);
+
+      const caValues = {};
+      [ca1Raw, ca2Raw].forEach((raw, i) => {
+        const f = type.controlAccountFields[i];
+        if (!f) return;
+        if (!raw) { caValues[f.field] = null; return; }
+        const bucket = (caState(f.caKey).accounts || []).find(b => (b?.item?.name || b?.item?.text || '').trim().toLowerCase() === raw.toLowerCase());
+        caValues[f.field] = bucket ? bucket.key : null;
+        if (!bucket) errors.push(`Row ${num}: control account "${raw}" not found for ${type.label} (${f.label}) — will import with none set.`);
+      });
+
+      const dedupeKey = 'sub:' + typeKey + '||' + code.toLowerCase();
+      if (rowsMap.has(dedupeKey)) errors.push(`Row ${num}: duplicate ${type.label} code "${code}" within this file — using the last occurrence.`);
+
+      const existing = (subState(typeKey).accounts || []).find(a => String(a?.item?.[type.codeField] || '').trim().toLowerCase() === code.toLowerCase());
+      rowsMap.set(dedupeKey, { code, name, mode: 'subsidiary', typeKey, caValues, action: existing ? 'update' : 'create', existingKey: existing?.key, existingItem: existing?.item });
+    });
+    const rows = Array.from(rowsMap.values());
+    rows.sort((a,b) => naturalCodeCompare(a.code, b.code));
+    State.subsidiary.parsedImportRows = rows;
+
+    const creates = rows.filter(r=>r.action==='create').length, updates = rows.filter(r=>r.action==='update').length;
+    preview.innerHTML = `
+      <div class="card" style="background:var(--gold-lt);border-color:#f3dfa8;">
+        <div class="ok-box">Parsed ${rows.length} row(s) across ${new Set(rows.map(r=>r.typeKey)).size} type(s) — <strong>${creates} to create</strong>, <strong>${updates} to update</strong>.</div>
+        ${errors.length ? `<div class="err-box">${errors.length} warning(s):<br>${errors.slice(0,20).map(escHTML).join('<br>')}${errors.length>20?'<br>…':''}</div>` : ''}
+        <div class="tbl-wrap" style="max-height:260px;overflow-y:auto;"><table><thead><tr><th>#</th><th>Code</th><th>Type</th><th>Name</th><th>Action</th></tr></thead>
+          <tbody>${rows.slice(0,50).map((r,i)=>`<tr><td>${i+1}</td><td class="mono">${escHTML(r.code)}</td><td><span class="type-tag">${escHTML(r.mode==='bucket' ? bucketRowType(r.typeKey).label : subType(r.typeKey).label)}</span></td><td>${escHTML(r.name)}</td><td><span class="upsert-tag upsert-${r.action}">${r.action}</span></td></tr>`).join('')}</tbody>
+        </table></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" ${rows.length?'':'disabled'} onclick="runSubsidiaryImport()">Import ${rows.length} Account(s)</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('sub-import-preview').innerHTML='';">Cancel</button>
+        </div>
+        <div id="sub-import-status" class="status-txt"></div>
+      </div>`;
+  } catch (err) {
+    preview.innerHTML = `<div class="err-box">⚠ Failed while reading/parsing: ${escHTML(err.message||String(err))}</div>`;
+    console.error('subPreviewFile failed:', err);
+  }
+}
+async function runSubsidiaryImport() {
+  const rows = State.subsidiary.parsedImportRows; if (!rows || !rows.length) return;
+  const status = document.getElementById('sub-import-status');
+  const CHUNK = 200;
+  try {
+    const byType = new Map();
+    rows.forEach(r => { const k = r.mode + ':' + r.typeKey; if (!byType.has(k)) byType.set(k, []); byType.get(k).push(r); });
+    let totalCreated = 0, totalUpdated = 0; const totalFailed = [];
+
+    for (const [k, typeRows] of byType) {
+      const mode = typeRows[0].mode, typeKey = typeRows[0].typeKey;
+      const label = mode === 'bucket' ? bucketRowType(typeKey).label : subType(typeKey).label;
+      const creates = typeRows.filter(r => r.action === 'create');
+      const updates = typeRows.filter(r => r.action === 'update');
+
+      if (mode === 'bucket') {
+        for (const r of updates) {
+          status.textContent = `Updating ${label}: ${r.name}…`;
+          try {
+            const value = { ...r.existingItem, code: r.code, name: r.name, group: r.groupKey || null };
+            await apiCall('PUT', caSingleEp(typeKey), { key: r.existingKey, value });
+            totalUpdated++;
+          } catch (e) { totalFailed.push(`${label} update "${r.code}": ${e.message}`); }
+        }
+        const existingMaxPos = Math.max(0, ...(caState(typeKey).accounts||[]).map(a => Number(a?.item?.position ?? 0)));
+        creates.forEach((r,i) => { r._pos = existingMaxPos + 1 + i; });
+        for (let i = 0; i < creates.length; i += CHUNK) {
+          const chunk = creates.slice(i, i + CHUNK);
+          const values = chunk.map(r => ({ name: r.name, code: r.code, group: r.groupKey || null, position: r._pos, inactive: false }));
+          status.textContent = `Creating ${label} ${i+1}-${i+chunk.length} of ${creates.length}…`;
+          try { await apiCall('POST', caBatchPostEp(typeKey), { values }); totalCreated += chunk.length; }
+          catch (e) { totalFailed.push(`${label} rows ${i+1}-${i+chunk.length}: ${e.message}`); }
+        }
+        await loadCAType(typeKey);
+        continue;
+      }
+
+      const type = subType(typeKey);
+      for (const r of updates) {
+        status.textContent = `Updating ${label}: ${r.name}…`;
+        try {
+          const value = { ...r.existingItem, [type.codeField]: r.code, [type.nameField]: r.name, ...r.caValues };
+          await apiCall('PUT', subSingleEp(typeKey), { key: r.existingKey, value });
+          totalUpdated++;
+        } catch (e) { totalFailed.push(`${label} update "${r.code}": ${e.message}`); }
+      }
+      const ep = subBatchPostEp(typeKey);
+      for (let i = 0; i < creates.length; i += CHUNK) {
+        const chunk = creates.slice(i, i + CHUNK);
+        const values = chunk.map(r => ({ [type.codeField]: r.code, [type.nameField]: r.name, ...r.caValues, inactive: false }));
+        status.textContent = `Creating ${label} ${i+1}-${i+chunk.length} of ${creates.length}… (POST ${ep})`;
+        try { await apiCall('POST', ep, { values }); totalCreated += chunk.length; }
+        catch (e) { totalFailed.push(`${label} rows ${i+1}-${i+chunk.length}: ${e.message}`); }
+      }
+      await loadSubType(typeKey);
+    }
+    status.innerHTML = `✓ Created ${totalCreated}, updated ${totalUpdated}.` + (totalFailed.length ? `<br><span style="color:var(--red);">⚠ ${totalFailed.map(escHTML).join('<br>')}</span>` : '');
+    if (totalFailed.length) console.warn(totalFailed.join('\n'));
+    State.subsidiary.parsedImportRows = null;
+    document.getElementById('sub-import-preview').innerHTML = '';
+    document.getElementById('sub-import-file').value = '';
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--red);">⚠ Unexpected error: ${escHTML(err.message||String(err))}</span>`;
+    console.error('runSubsidiaryImport failed:', err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CONTROL ACCOUNTS — combined report + import across all bucket types
+   (Bank and Cash Accounts, Customers, Suppliers, Employees, Fixed
+   Assets, Fixed Assets Accum. Depreciation, Intangible Assets,
+   Intangible Assets Accum. Amortization, Inventory Items, Capital
+   Accounts, Investments, Special Accounts.)
+══════════════════════════════════════════════════════════════════ */
+async function ensureControlLoaded() {
+  if (State.control.loaded || State.control.loading) return;
+  State.control.loading = true;
+  await Promise.all(CONTROL_BUCKET_TYPES.map(t => loadCAType(t.key)));
+  State.control.loading = false;
+  State.control.loaded = true;
+}
+function controlRows() {
+  const rows = [];
+  CONTROL_BUCKET_TYPES.forEach(t => {
+    (caState(t.key).accounts || []).filter(a => !a?.item?.inactive).forEach(a => {
+      rows.push({ typeKey: t.key, typeLabel: t.label, key: a.key, code: a?.item?.code || '', name: a?.item?.name || '', group: bsGroupLabel(a?.item?.group) });
+    });
+  });
+  return rows;
+}
+function bsGroupLabel(uuid) {
+  // Control account buckets reference Balance Sheet groups explicitly —
+  // not tstate(), which is undefined for the 'control' current type.
+  return uuid ? (pathFromGroupList(State.data.bs.groups, uuid) || 'Ungrouped') : 'Ungrouped';
+}
+function controlVisibleRows() {
+  let rows = controlRows();
+  const q = (State.control.search || '').toLowerCase().trim();
+  if (q) rows = rows.filter(r => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.typeLabel.toLowerCase().includes(q) || r.group.toLowerCase().includes(q));
+  if (State.control.typeFilter) rows = rows.filter(r => r.typeKey === State.control.typeFilter);
+  const { field, dir } = State.control.sort;
+  rows.sort((a,b) => {
+    const cmp = field === 'code' ? naturalCodeCompare(a.code,b.code) : String(a[field]||'').localeCompare(String(b[field]||''));
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return rows;
+}
+function controlTypeFilterOptionsHTML() {
+  return `<option value="">All types</option>` + CONTROL_BUCKET_TYPES.map(t => `<option value="${t.key}" ${State.control.typeFilter===t.key?'selected':''}>${escHTML(t.label)}</option>`).join('');
+}
+async function renderControlReport() {
+  const app = document.getElementById('app');
+  if (!State.control.loaded) {
+    app.innerHTML = `<div class="card"><div class="empty">Loading Control Accounts…</div></div>`;
+    try {
+      await ensureControlLoaded();
+      if (State.currentType === 'control' && State.currentTab === 'report') renderControlReportInner();
+    } catch (err) {
+      app.innerHTML = `<div class="card"><div class="err-box">⚠ Failed to load Control Accounts: ${escHTML(err.message||String(err))}</div></div>`;
+      console.error('renderControlReport failed:', err);
+    }
+    return;
+  }
+  try { renderControlReportInner(); }
+  catch (err) {
+    app.innerHTML = `<div class="card"><div class="err-box">⚠ Failed to render: ${escHTML(err.message||String(err))}</div></div>`;
+    console.error('renderControlReportInner failed:', err);
+  }
+}
+function renderControlReportInner() {
+  const app = document.getElementById('app');
+  const rows = controlVisibleRows();
+  const sel = State.control.selected;
+  const allChecked = rows.length > 0 && rows.every(r => sel.has(r.typeKey + '::' + r.key));
+  const errors = CONTROL_BUCKET_TYPES.filter(t => caState(t.key).error).map(t => ({ label: t.label, ep: caBatchGetEp(t.key), message: caState(t.key).error }));
+  const th = (label, f) => {
+    const active = State.control.sort.field === f;
+    const arrow = active ? (State.control.sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    return `<th style="cursor:pointer;" onclick="controlSetSort('${f}')">${label}${arrow}</th>`;
+  };
+  app.innerHTML = `
+    <div class="card">
+      ${errors.length ? `<div class="err-box">${errors.map(e=>`<strong>${escHTML(e.label)}</strong> (<code>${escHTML(e.ep)}</code>): ${escHTML(e.message)}`).join('<br>')}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0;">
+          <h2 style="white-space:nowrap;">Control Accounts <span class="badge">${rows.length}</span></h2>
+          <input type="text" style="flex:1;min-width:140px;max-width:260px;" placeholder="🔍 Search…" value="${escHTML(State.control.search||'')}"
+            oninput="State.control.search=this.value; renderControlReportInner();">
+          <select style="max-width:220px;" onchange="State.control.typeFilter=this.value; renderControlReportInner();">${controlTypeFilterOptionsHTML()}</select>
+          ${sel.size ? `<button class="btn btn-secondary" onclick="State.control.selected.clear(); renderControlReportInner();">Clear (${sel.size})</button>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary" onclick="openControlBulkGroupPanel()" ${sel.size ? '' : 'disabled'}>🏷️ Change Group (${sel.size})</button>
+          <button class="btn btn-secondary" onclick="reloadControl()">↺ Reload</button>
+          <button class="btn btn-secondary" onclick="switchTab('import')">📥 Import</button>
+        </div>
+      </div>
+      <div id="control-bulk-edit-panel"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:26px;"><input type="checkbox" ${allChecked?'checked':''} onchange="controlToggleAll(this.checked)"></th>
+            ${th('Code','code')}${th('Type','typeLabel')}${th('Name','name')}${th('Group','group')}<th style="width:60px;">Actions</th></tr></thead>
+          <tbody>
+            ${rows.length ? rows.map(r => `<tr>
+              <td><input type="checkbox" ${sel.has(r.typeKey+'::'+r.key)?'checked':''} onchange="controlToggleRow('${r.typeKey}','${r.key}', this.checked)"></td>
+              <td class="mono">${escHTML(r.code) || '—'}</td>
+              <td><span class="type-tag">${escHTML(r.typeLabel)}</span></td>
+              <td>${escHTML(r.name) || '—'}</td>
+              <td>${escHTML(r.group)}</td>
+              <td><button class="btn-action" onclick="openControlEditModal('${r.typeKey}','${r.key}')">Edit</button></td>
+            </tr>`).join('') : `<tr><td colspan="6" class="empty">No control account records found.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+function controlSetSort(field) {
+  if (State.control.sort.field === field) State.control.sort.dir = State.control.sort.dir === 'asc' ? 'desc' : 'asc';
+  else State.control.sort = { field, dir: 'asc' };
+  renderControlReportInner();
+}
+function controlToggleRow(typeKey, key, checked) {
+  const k = typeKey + '::' + key;
+  if (checked) State.control.selected.add(k); else State.control.selected.delete(k);
+  renderControlReportInner();
+}
+function controlToggleAll(checked) {
+  const rows = controlVisibleRows();
+  rows.forEach(r => { const k = r.typeKey + '::' + r.key; if (checked) State.control.selected.add(k); else State.control.selected.delete(k); });
+  renderControlReportInner();
+}
+async function reloadControl() {
+  State.control.loaded = false;
+  await ensureControlLoaded();
+  if (State.currentType === 'control') { State.currentTab === 'import' ? renderControlImportTab() : renderControlReportInner(); }
+}
+
+function openControlEditModal(typeKey, accKey) {
+  const acct = (caState(typeKey).accounts || []).find(a => a.key === accKey);
+  if (!acct) return;
+  const item = acct.item || {};
+  const label = CONTROL_BUCKET_TYPES.find(t => t.key === typeKey)?.label || typeKey;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open'; overlay.id = 'control-edit-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('control-edit-overlay').remove()">✕</button>
+      <h3 style="margin-bottom:14px;">Edit ${escHTML(label)}</h3>
+      <div class="field"><label>Code</label><input type="text" id="control-edit-code" value="${escHTML(item.code||'')}"></div>
+      <div class="field"><label>Name</label><input type="text" id="control-edit-name" value="${escHTML(item.name||'')}"></div>
+      <div class="field"><label>Group</label>
+        <select id="control-edit-group">
+          <option value="">— Ungrouped —</option>
+          ${(State.data.bs.groups||[]).map(g => `<option value="${g.key}" ${g.key===item.group?'selected':''}>${escHTML(pathFromGroupList(State.data.bs.groups,g.key)||g.item.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div id="control-edit-status" class="status-txt"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveControlEditModal('${typeKey}','${accKey}')">💾 Save</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('control-edit-overlay').remove()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+async function saveControlEditModal(typeKey, accKey) {
+  const acct = (caState(typeKey).accounts || []).find(a => a.key === accKey);
+  if (!acct) return;
+  const code = document.getElementById('control-edit-code').value.trim();
+  const name = document.getElementById('control-edit-name').value.trim();
+  const group = document.getElementById('control-edit-group').value || null;
+  const status = document.getElementById('control-edit-status');
+  if (!name) { status.textContent = '⚠ Name is required.'; return; }
+  status.textContent = 'Saving…';
+  try {
+    await apiCall('PUT', caSingleEp(typeKey), { key: accKey, value: { ...acct.item, code, name, group } });
+    await loadCAType(typeKey);
+    document.getElementById('control-edit-overlay').remove();
+    renderControlReportInner();
+  } catch (e) {
+    status.textContent = '⚠ ' + e.message + ' — single PUT for buckets is unconfirmed by docs.';
+  }
+}
+
+function openControlBulkGroupPanel() {
+  const panel = document.getElementById('control-bulk-edit-panel');
+  if (!panel) return;
+  const sel = State.control.selected;
+  panel.innerHTML = `
+    <div class="card" style="background:var(--violet-lt);border-color:#d7cff8;">
+      <h3>🏷️ Change Group for ${sel.size} Selected Account(s)</h3>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="field" style="margin:0;min-width:220px;flex:1;max-width:340px;">
+          <label>New Group</label>
+          <select id="control-bulk-group-select">
+            <option value="">— Ungrouped —</option>
+            ${(State.data.bs.groups||[]).map(g => `<option value="${g.key}">${escHTML(pathFromGroupList(State.data.bs.groups, g.key) || g?.item?.name || g.key)}</option>`).join('')}
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="applyControlBulkGroup()">💾 Apply to ${sel.size}</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('control-bulk-edit-panel').innerHTML='';">Cancel</button>
+      </div>
+      <div id="control-bulk-group-status" class="status-txt"></div>
+    </div>`;
+}
+async function applyControlBulkGroup() {
+  const groupKey = document.getElementById('control-bulk-group-select').value || null;
+  const status = document.getElementById('control-bulk-group-status');
+  const byType = new Map();
+  Array.from(State.control.selected).forEach(k => {
+    const [typeKey, accKey] = k.split('::');
+    if (!byType.has(typeKey)) byType.set(typeKey, []);
+    byType.get(typeKey).push(accKey);
+  });
+  let ok = 0, total = 0; const failed = [];
+  for (const [typeKey, keys] of byType) {
+    total += keys.length;
+    for (const accKey of keys) {
+      const acct = (caState(typeKey).accounts || []).find(a => a.key === accKey);
+      if (!acct) continue;
+      if (status) status.textContent = `Updating… ${ok + failed.length}/${total}`;
+      try { await apiCall('PUT', caSingleEp(typeKey), { key: accKey, value: { ...acct.item, group: groupKey } }); ok++; }
+      catch (e) { failed.push(`${acct.item?.name || accKey}: ${e.message}`); }
+    }
+    await loadCAType(typeKey);
+  }
+  status && (status.textContent = `✓ ${ok}/${total} account(s) moved to "${groupKey ? pathFromGroupList(State.data.bs.groups, groupKey) : 'Ungrouped'}".` + (failed.length ? ` ⚠ ${failed.length} failed — see console.` : ''));
+  if (failed.length) console.warn(failed.join('\n'));
+  State.control.selected.clear();
+  document.getElementById('control-bulk-edit-panel').innerHTML = '';
+  renderControlReportInner();
+}
+
+/* ---- Control Accounts — single unified Bulk Import sheet (Code, Name, Type, Group) ---- */
+function renderControlImportTab() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="card">
+      <h2 style="margin-bottom:10px;">📥 Bulk Import Control Accounts</h2>
+      <div class="info-box">One sheet, any mix of types. Columns: Code, Name, Type, Group. Full instructions are in the downloaded template's first sheet. Re-importing a file with a Code that already exists for that Type <strong>updates</strong> it instead of creating a duplicate.</div>
+      <div class="btn-row" style="margin-top:0;margin-bottom:14px;"><button class="btn btn-secondary" onclick="downloadControlTemplate()">⬇ Download Template</button></div>
+      <div class="field"><label>Excel file (.xlsx)</label><input type="file" id="control-import-file" accept=".xlsx"></div>
+      <div id="control-import-preview"></div>
+      <div class="btn-row"><button class="btn btn-primary" id="control-import-btn" onclick="runControlImport()" disabled>Import</button></div>
+      <div id="control-import-status" class="status-txt"></div>
+    </div>`;
+  document.getElementById('control-import-file').addEventListener('change', controlPreviewFile);
+}
+async function downloadControlTemplate() {
+  await ensureControlLoaded();
+  const wb = new ExcelJS.Workbook();
+  addInstructionsSheet(wb, {
+    title: 'Control Accounts — Bulk Import Guide',
+    intro: [
+      'This workbook creates or updates Control Account "bucket" records — the heading a Balance Sheet line rolls up into (e.g. which BS group "Customers" or "Bank and Cash Accounts" reports under).',
+      'This is different from the Subsidiary Accounts sheet: that one fills in individual accounts UNDER a bucket (specific customers, specific bank accounts). This sheet creates the buckets themselves.',
+    ],
+    columns: [
+      'Code — the account code. Required.',
+      'Name — the control account name (e.g. "Clients", "Comptes bancaires"). Required.',
+      'Type — which category this bucket belongs to. Must exactly match a name from the "Valid Types" sheet (Customers, Suppliers, Bank and Cash Accounts, etc.).',
+      'Group — which Balance Sheet group this bucket rolls up into. Must exactly match a name from the "Valid Groups" sheet. Leave blank to import ungrouped.',
+    ],
+    rules: [
+      'Most types only need one bucket. Fixed Assets and Intangible Assets specifically need their Accum. Depreciation / Accum. Amortization buckets to exist before those assets can be imported on the Subsidiary Accounts sheet.',
+      'Type and Group names are matched case-insensitively but must otherwise match exactly — copy them from the reference sheets rather than retyping.',
+    ],
+    otherSheets: ['"Control Accounts" — put your data here, starting row 2.', '"Valid Types" — every category you can use.', '"Valid Groups" — every Balance Sheet group name currently in your business.'],
+  });
+
+  const ws = wb.addWorksheet('Control Accounts');
+  ws.columns = [
+    { header: 'Code', key: 'code', width: 14 }, { header: 'Name', key: 'name', width: 42 },
+    { header: 'Type', key: 'type', width: 28 }, { header: 'Group', key: 'group', width: 32 },
+  ];
+  ws.addRow({ code: '1100', name: 'Clients', type: CONTROL_BUCKET_TYPES[1].label, group: (State.data.bs.groups||[])[0]?.item?.name || '' });
+
+  const wsT = wb.addWorksheet('Valid Types');
+  wsT.columns = [{ header: 'Type name — copy exactly into the "Type" column', key: 't', width: 42 }];
+  CONTROL_BUCKET_TYPES.forEach(t => wsT.addRow({ t: t.label }));
+
+  const wsG = wb.addWorksheet('Valid Groups');
+  wsG.columns = [{ header: 'Group name — copy exactly into the "Group" column', key: 'g', width: 50 }];
+  (State.data.bs.groups||[]).forEach(g => wsG.addRow({ g: pathFromGroupList(State.data.bs.groups, g.key) || g?.item?.name || '' }));
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'control-accounts-import-template.xlsx'; a.click();
+  URL.revokeObjectURL(url);
+}
+async function controlPreviewFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const preview = document.getElementById('control-import-preview');
+  preview.innerHTML = `<div class="status-txt">Reading file…</div>`;
+  try {
+    await ensureControlLoaded();
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+    const ws = wb.getWorksheet('Control Accounts') || wb.worksheets[0];
+    const headerRow = ws.getRow(1).values.map(v => (v||'').toString().trim().toLowerCase());
+    const idxCode = headerRow.indexOf('code'), idxName = headerRow.indexOf('name'), idxType = headerRow.indexOf('type'), idxGroup = headerRow.indexOf('group');
+    if (idxCode < 0 || idxName < 0 || idxType < 0) { alert('The file must have "Code", "Name" and "Type" columns.'); preview.innerHTML=''; return; }
+
+    const typeIdx = new Map(CONTROL_BUCKET_TYPES.map(t => [t.label.toLowerCase(), t.key]));
+    CONTROL_BUCKET_TYPES.forEach(t => typeIdx.set(t.key.toLowerCase(), t.key));
+    const groupIdx = new Map();
+    (State.data.bs.groups || []).forEach(g => {
+      const path = (pathFromGroupList(State.data.bs.groups, g.key) || g?.item?.name || '').trim().toLowerCase();
+      const nm = (g?.item?.name || '').trim().toLowerCase();
+      if (path) groupIdx.set(path, g.key);
+      if (nm) groupIdx.set(nm, g.key);
+    });
+
+    const rowsMap = new Map();
+    const errors = [];
+    ws.eachRow((row, num) => {
+      if (num === 1) return;
+      const code = (row.values[idxCode] ?? '').toString().trim();
+      const name = (row.values[idxName] ?? '').toString().trim();
+      const typeRaw = (row.values[idxType] ?? '').toString().trim();
+      const gRaw = idxGroup >= 0 ? (row.values[idxGroup] ?? '').toString().trim() : '';
+      if (!code && !name && !typeRaw) return;
+      if (!code || !name || !typeRaw) { errors.push(`Row ${num}: missing Code, Name or Type — skipped.`); return; }
+      const typeKey = typeIdx.get(typeRaw.toLowerCase());
+      if (!typeKey) { errors.push(`Row ${num}: type "${typeRaw}" not recognized — skipped. Valid: ${CONTROL_BUCKET_TYPES.map(t=>t.label).join(', ')}`); return; }
+      let groupKey = null;
+      if (gRaw) { groupKey = groupIdx.get(gRaw.toLowerCase()) || null; if (!groupKey) errors.push(`Row ${num}: group "${gRaw}" not found — ungrouped.`); }
+      const dedupeKey = typeKey + '||' + code.toLowerCase();
+      if (rowsMap.has(dedupeKey)) errors.push(`Row ${num}: duplicate ${CONTROL_BUCKET_TYPES.find(t=>t.key===typeKey).label} code "${code}" within this file — using the last occurrence.`);
+      const existing = (caState(typeKey).accounts || []).find(a => String(a?.item?.code || '').trim().toLowerCase() === code.toLowerCase());
+      rowsMap.set(dedupeKey, { code, name, typeKey, groupKey, action: existing ? 'update' : 'create', existingKey: existing?.key, existingItem: existing?.item });
+    });
+    const rows = Array.from(rowsMap.values());
+    rows.sort((a,b) => naturalCodeCompare(a.code, b.code));
+    State.control.parsedImportRows = rows;
+
+    const creates = rows.filter(r=>r.action==='create').length, updates = rows.filter(r=>r.action==='update').length;
+    preview.innerHTML = `
+      <div class="card" style="background:var(--gold-lt);border-color:#f3dfa8;">
+        <div class="ok-box">Parsed ${rows.length} row(s) across ${new Set(rows.map(r=>r.typeKey)).size} type(s) — <strong>${creates} to create</strong>, <strong>${updates} to update</strong>.</div>
+        ${errors.length ? `<div class="err-box">${errors.length} warning(s):<br>${errors.slice(0,20).map(escHTML).join('<br>')}${errors.length>20?'<br>…':''}</div>` : ''}
+        <div class="tbl-wrap" style="max-height:260px;overflow-y:auto;"><table><thead><tr><th>#</th><th>Code</th><th>Type</th><th>Name</th><th>Action</th></tr></thead>
+          <tbody>${rows.slice(0,50).map((r,i)=>`<tr><td>${i+1}</td><td class="mono">${escHTML(r.code)}</td><td><span class="type-tag">${escHTML(CONTROL_BUCKET_TYPES.find(t=>t.key===r.typeKey).label)}</span></td><td>${escHTML(r.name)}</td><td><span class="upsert-tag upsert-${r.action}">${r.action}</span></td></tr>`).join('')}</tbody>
+        </table></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" ${rows.length?'':'disabled'} onclick="runControlImport()">Import ${rows.length} Record(s)</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('control-import-preview').innerHTML='';">Cancel</button>
+        </div>
+        <div id="control-import-status" class="status-txt"></div>
+      </div>`;
+  } catch (err) {
+    preview.innerHTML = `<div class="err-box">⚠ Failed while reading/parsing: ${escHTML(err.message||String(err))}</div>`;
+    console.error('controlPreviewFile failed:', err);
+  }
+}
+async function runControlImport() {
+  const rows = State.control.parsedImportRows; if (!rows || !rows.length) return;
+  const status = document.getElementById('control-import-status');
+  const CHUNK = 200;
+  try {
+    const byType = new Map();
+    rows.forEach(r => { if (!byType.has(r.typeKey)) byType.set(r.typeKey, []); byType.get(r.typeKey).push(r); });
+    let totalCreated = 0, totalUpdated = 0; const totalFailed = [];
+    for (const [typeKey, typeRows] of byType) {
+      const label = CONTROL_BUCKET_TYPES.find(t=>t.key===typeKey).label;
+      const creates = typeRows.filter(r => r.action === 'create');
+      const updates = typeRows.filter(r => r.action === 'update');
+
+      for (const r of updates) {
+        status.textContent = `Updating ${label}: ${r.name}…`;
+        try {
+          await apiCall('PUT', caSingleEp(typeKey), { key: r.existingKey, value: { ...r.existingItem, code: r.code, name: r.name, group: r.groupKey || null } });
+          totalUpdated++;
+        } catch (e) { totalFailed.push(`${label} update "${r.code}": ${e.message}`); }
+      }
+
+      const existingMaxPos = Math.max(0, ...(caState(typeKey).accounts||[]).map(a => Number(a?.item?.position ?? 0)));
+      creates.forEach((r,i) => { r._pos = existingMaxPos + 1 + i; });
+      for (let i = 0; i < creates.length; i += CHUNK) {
+        const chunk = creates.slice(i, i + CHUNK);
+        const values = chunk.map(r => ({ name: r.name, code: r.code, group: r.groupKey || null, position: r._pos, inactive: false }));
+        status.textContent = `Creating ${label} ${i+1}-${i+chunk.length} of ${creates.length}… (POST ${caBatchPostEp(typeKey)})`;
+        try { await apiCall('POST', caBatchPostEp(typeKey), { values }); totalCreated += chunk.length; }
+        catch (e) { totalFailed.push(`${label} rows ${i+1}-${i+chunk.length}: ${e.message}`); }
+      }
+      await loadCAType(typeKey);
+    }
+    status.innerHTML = `✓ Created ${totalCreated}, updated ${totalUpdated}.` + (totalFailed.length ? `<br><span style="color:var(--red);">⚠ ${totalFailed.map(escHTML).join('<br>')}</span>` : '');
+    if (totalFailed.length) console.warn(totalFailed.join('\n'));
+    State.control.parsedImportRows = null;
+    document.getElementById('control-import-preview').innerHTML = '';
+    document.getElementById('control-import-file').value = '';
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--red);">⚠ Unexpected error: ${escHTML(err.message||String(err))}</span>`;
+    console.error('runControlImport failed:', err);
+  }
+}
+
+window.addEventListener('error', e => {
+  console.error('Uncaught error:', e.message, 'at', e.filename + ':' + e.lineno + ':' + e.colno, e.error?.stack || '');
+  const st = document.getElementById('status-txt');
+  if (st) st.textContent = '⚠ Error: ' + (e?.message || 'unknown') + ' — see console for details';
+});
+</script>
+<div style="text-align:center;padding:10px 0 4px;font-size:10px;color:var(--muted);">
+  © Promo ERP 2026 · <a href="https://promoerp.it/" target="_blank" rel="noopener" style="color:var(--violet-dk);text-decoration:none;font-weight:600;">promoerp.it</a>
+</div>
+
+</body>
+</html>
