@@ -409,6 +409,7 @@ tr:last-child td { border-bottom: 0; }
             managerOrigin = origin;
             State.origin = origin;
             setConnection('ok', 'Connected: Manager');
+            if (!State.context) State.context = { apiEndpoint: '', apiAccessToken: '' };
             if (!State.loaded && !State.loading && !State.probing) loadBaseData();
           }
           resolve(event.data.body);
@@ -1742,7 +1743,6 @@ tr:last-child td { border-bottom: 0; }
   }
 
   function handleLoadData() {
-    if (!State.context) { toast('Manager context is not ready yet.', 'warn'); return; }
     if (!State.loaded) { loadBaseData(); return; }
     if (!State.glModel) {
       confirmAction('Prepare the GL report?', 'This creates or reuses a reporting-only General Ledger Transactions definition for the selected FBR range, then loads its view. No journals are posted. Existing FBR flags and documents are not changed.', 'Prepare and load', 'confirm-refresh-gl');
