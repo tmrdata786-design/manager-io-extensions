@@ -654,10 +654,6 @@ tr:last-child td { border-bottom: 0; }
   }
 
   async function loadBaseData() {
-    if (!State.context) {
-      toast('Manager context is not ready yet.', 'warn');
-      return;
-    }
     State.loading = true;
     State.error = null;
     State.warnings = [];
