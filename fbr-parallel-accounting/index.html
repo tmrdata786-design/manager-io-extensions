@@ -762,10 +762,10 @@ tr:last-child td { border-bottom: 0; }
     };
     let response;
     try {
-      response = await apiCall('POST', '/api4/general-ledger-transactions-form', formBody, { timeoutMs: 60000 });
+      response = await apiCall('POST', '/api2/general-ledger-transactions-form', formBody, { timeoutMs: 60000 });
     } catch (error) {
       if (!isNotFound(error)) throw error;
-      response = await apiCall('POST', '/api4/general-ledger-transactions', {
+      response = await apiCall('POST', '/api2/general-ledger-transactions', {
         value: { description: description, fromDate: from, toDate: to, account: null }
       }, { timeoutMs: 60000 });
     }
@@ -790,7 +790,7 @@ tr:last-child td { border-bottom: 0; }
       setBusy(true, 'Finding GL report definition', 'Read-only lookup');
       let definitions = [];
       try {
-        definitions = await fetchWithFallback(['general-ledger-transactions-batch', 'general-ledger-transactions'], true);
+        definitions = await fetchWithFallback(['/api2/general-ledger-transactions-batch', '/api2/general-ledger-transactions'], true);
       } catch (error) {
         definitions = [];
       }
@@ -813,7 +813,8 @@ tr:last-child td { border-bottom: 0; }
       }
       setBusy(true, 'Loading GL report view', 'Posted ledger rows and source links');
       try {
-        model = await apiCall('GET', '/api4/general-ledger-transactions-view?Key=' + encodeURIComponent(key), null, { timeoutMs: 180000 });
+        // Use the general-ledger report endpoint which returns transactions with source links
+        model = await apiCall('GET', '/api2/general-ledger?FromDate=' + encodeURIComponent(wantedFrom) + '&ToDate=' + encodeURIComponent(wantedTo), null, { timeoutMs: 180000 });
         break;
       } catch (error) {
         if (created || !isNotFound(error)) throw error;
@@ -845,7 +846,7 @@ tr:last-child td { border-bottom: 0; }
   }
 
   async function fetchFullFolders() {
-    const folders = await fetchWithFallback(['folders', 'folder-batch'], false);
+    const folders = await fetchWithFallback(['/api2/folders', '/api2/folder-batch'], false);
     const full = [];
     for (const folder of folders) {
       const key = E.itemKey(folder);
@@ -855,7 +856,7 @@ tr:last-child td { border-bottom: 0; }
         continue;
       }
       try {
-        const record = await apiCall('GET', '/api4/folder-form/' + encodeURIComponent(key), null, { timeoutMs: 60000 });
+        const record = await apiCall('GET', '/api2/folder-form/' + encodeURIComponent(key), null, { timeoutMs: 60000 });
         full.push({ key: key, item: record || item });
       } catch (error) {
         full.push(folder);
@@ -888,17 +889,17 @@ tr:last-child td { border-bottom: 0; }
 
   async function createFolder(body) {
     try {
-      return await apiCall('POST', '/api4/folder-form', body, { timeoutMs: 60000 });
+      return await apiCall('POST', '/api2/folder-form', body, { timeoutMs: 60000 });
     } catch (error) {
-      if (isNotFound(error)) return await apiCall('POST', '/api4/folder', folderCollectionBody(body), { timeoutMs: 60000 });
+      if (isNotFound(error)) return await apiCall('POST', '/api2/folder', folderCollectionBody(body), { timeoutMs: 60000 });
       throw error;
     }
   }
 
   async function updateFolder(key, body) {
     const attempts = [
-      ['PUT', '/api4/folder-form/' + encodeURIComponent(key), Object.assign({ Key: key }, body)],
-      ['PUT', '/api4/folder', Object.assign({ key: key }, folderCollectionBody(body))]
+      ['PUT', '/api2/folder-form/' + encodeURIComponent(key), Object.assign({ Key: key }, body)],
+      ['PUT', '/api2/folder', Object.assign({ key: key }, folderCollectionBody(body))]
     ];
     for (const attempt of attempts) {
       try {
