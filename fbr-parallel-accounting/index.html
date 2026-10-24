@@ -814,9 +814,15 @@ tr:last-child td { border-bottom: 0; }
       created = true;
     }
 
-    // Build GL model from fetched documents instead of calling non-existent endpoint
-    setBusy(true, 'Building GL report from documents', 'Aggregating ledger lines');
-    const model = buildGlModelFromDocuments(wantedFrom, wantedTo);
+    // Retrieve GL data through the correct API endpoint
+    setBusy(true, 'Fetching GL report data', 'Downloading from Manager API');
+    let model = { rows: [] };
+    try {
+      const fetched = await apiCall('GET', '/api2/general-ledger-transactions/' + encodeURIComponent(key), null, { timeoutMs: 90000 });
+      if (fetched) model = fetched;
+    } catch (error) {
+      throw new Error('Failed to retrieve General Ledger report data: ' + error.message);
+    }
 
     State.glReportKey = key;
     State.glRange = { from: wantedFrom, to: wantedTo };
@@ -839,132 +845,6 @@ tr:last-child td { border-bottom: 0; }
     }
     recompute();
     renderAll();
-  }
-
-  function buildGlModelFromDocuments(from, to) {
-    if (!State.docIndex) return { rows: [] };
-    const accountIndex = State.accountIndex;
-    const docIndex = State.docIndex;
-    const accountGroups = new Map();
-
-    // Helper to get or create account group
-    function getGroup(accountKey, accountName, accountType) {
-      const groupKey = accountKey || 'UNMAPPED:' + accountName;
-      if (!accountGroups.has(groupKey)) {
-        accountGroups.set(groupKey, {
-          name: accountName || 'Unknown Account',
-          accountKey: accountKey,
-          accountType: accountType,
-          rows: []
-        });
-      }
-      return accountGroups.get(groupKey);
-    }
-
-    // Helper to add a GL line
-    function addGlLine(doc, line, accountKey, accountName, accountType, debit, credit, description) {
-      const group = getGroup(accountKey, accountName, accountType);
-      const docKey = doc.key;
-      const href = '/api2/' + doc.type + '-form/' + encodeURIComponent(doc.rawKey);
-      group.rows.push({
-        name: description || doc.reference || docKey,
-        cells: [
-          { value: debit || 0, link: { href: href } },
-          { value: credit || 0, link: { href: href } },
-          { value: (debit || 0) - (credit || 0) }
-        ],
-        docKey: docKey
-      });
-    }
-
-    // Process each document type
-    const enabledTypes = E.DOC_TYPES.filter((type) => State.placement.placement.includes(String(type.typeGuid).toLowerCase()));
-    for (const type of enabledTypes) {
-      const docs = docIndex.byType.get(type.key) || [];
-      for (const doc of docs) {
-        if (!doc.date || doc.date < from || doc.date > to) continue;
-        const raw = doc.raw;
-        if (!raw) continue;
-
-        // Extract lines based on document type
-        const lines = raw.Lines || raw.lines || [];
-        for (const line of lines) {
-          const accountId = line.Account || line.account;
-          const amount = E.num(line.Amount || line.amount || line.Debit || line.debit || line.Credit || line.credit || 0);
-          const debit = line.Debit !== undefined || line.debit !== undefined ? amount : (line.Credit === undefined && line.credit === undefined ? amount : 0);
-          const credit = line.Credit !== undefined || line.credit !== undefined ? amount : 0;
-
-          let accountKey = null;
-          let accountName = '';
-          let accountType = 'BS';
-          if (accountId && accountIndex) {
-            const acct = accountIndex.byKey.get(String(accountId).toLowerCase());
-            if (acct) {
-              accountKey = acct.key;
-              accountName = acct.nameWithCode;
-              accountType = acct.type;
-            }
-          }
-          if (!accountKey) {
-            accountName = accountId || 'Unknown Account';
-            accountType = 'BS';
-          }
-
-          const desc = doc.date + ' - ' + doc.typeLabel + ' ' + (doc.reference || docKey.slice(0, 8));
-          addGlLine(doc, line, accountKey, accountName, accountType, debit, credit, desc);
-        }
-      }
-    }
-
-    // Also process late payment fees
-    const lateFees = docIndex.byType.get('late-payment-fee') || [];
-    for (const fee of lateFees) {
-      if (!fee.date || fee.date < from || fee.date > to) continue;
-      const raw = fee.raw;
-      if (!raw) continue;
-      const lines = raw.Lines || raw.lines || [];
-      for (const line of lines) {
-        const accountId = line.Account || line.account;
-        const amount = E.num(line.Amount || line.amount || 0);
-        let accountKey = null;
-        let accountName = '';
-        let accountType = 'PL';
-        if (accountId && accountIndex) {
-          const acct = accountIndex.byKey.get(String(accountId).toLowerCase());
-          if (acct) {
-            accountKey = acct.key;
-            accountName = acct.nameWithCode;
-            accountType = acct.type;
-          }
-        }
-        if (!accountKey) {
-          accountName = 'Late Payment Fee';
-          accountType = 'PL';
-        }
-        const desc = fee.date + ' - ' + fee.typeLabel + ' ' + (fee.reference || fee.key.slice(0, 8));
-        addGlLine(fee, line, accountKey, accountName, accountType, amount, 0, desc);
-      }
-    }
-
-    // Convert groups to rows array
-    const rows = [];
-    for (const group of accountGroups.values()) {
-      if (group.rows.length > 0) {
-        rows.push({
-          name: group.name,
-          rows: group.rows
-        });
-      }
-    }
-
-    // Add synthetic total rows
-    rows.push({
-      name: 'Total',
-      isBold: true,
-      cells: [{ value: 0 }, { value: 0 }, { value: 0 }]
-    });
-
-    return { rows };
   }
 
   async function fetchFullFolders() {
