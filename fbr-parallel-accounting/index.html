@@ -380,7 +380,7 @@ tr:last-child td { border-bottom: 0; }
     if (path.length > 4096) throw new Error('API path is too long');
     if (path.includes('..')) throw new Error('Parent path segments are not allowed');
     const clean = path.split('?')[0];
-    if (!/^\/api4\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$/.test(clean)) throw new Error('Only /api4/ paths are allowed');
+    if (!/^\/api[24]\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$/.test(clean)) throw new Error('Only /api2/ or /api4/ paths are allowed');
   }
 
   function managerTargetOrigin() {
@@ -397,6 +397,7 @@ tr:last-child td { border-bottom: 0; }
       }, timeoutMs || 30000);
       function handler(event) {
         if (managerOrigin && event.origin !== managerOrigin) return;
+        if (event.source !== window.parent) return;
         if (event.data && typeof event.data.type === 'string' && event.data.type.endsWith('-response') && event.data.requestId === requestId) {
           clearTimeout(timer);
           window.removeEventListener('message', handler);
@@ -471,6 +472,12 @@ tr:last-child td { border-bottom: 0; }
     if (Array.isArray(data.items)) return data.items;
     if (Array.isArray(data.data)) return data.data;
     if (Array.isArray(data.rows)) return data.rows;
+    // Handle nested wrappers: { customFields: [...] }, { results: [...] }, etc.
+    for (const k of Object.keys(data)) {
+      if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === 'object') {
+        return data[k];
+      }
+    }
     return [];
   }
 
@@ -481,7 +488,7 @@ tr:last-child td { border-bottom: 0; }
   async function fetchAllPages(endpoint, options) {
     const opts = options || {};
     const pageSize = opts.pageSize || 2000;
-    let base = endpoint.startsWith('/api4/') ? endpoint : '/api4/' + endpoint;
+    let base = endpoint.startsWith('/api4/') || endpoint.startsWith('/api2/') ? endpoint : '/api4/' + endpoint;
     const collected = [];
     const seen = new Set();
     let skip = 0;
@@ -551,7 +558,7 @@ tr:last-child td { border-bottom: 0; }
   async function fetchRawWithFallback(endpoints, optional) {
     let lastError = null;
     for (const endpoint of endpoints) {
-      const path = endpoint.startsWith('/api4/') ? endpoint : '/api4/' + endpoint;
+      const path = endpoint.startsWith('/api4/') || endpoint.startsWith('/api2/') ? endpoint : '/api4/' + endpoint;
       try {
         return await apiCall('GET', path, null, { timeoutMs: 60000 });
       } catch (error) {
@@ -660,15 +667,21 @@ tr:last-child td { border-bottom: 0; }
     setBusy(true, 'Reading FBR fields', 'Custom fields and placement');
     try {
       const [checkboxFields, textFields, businessDetails] = await Promise.all([
-        fetchWithFallback(['checkbox-custom-fields', 'checkbox-custom-field-batch'], false),
-        fetchWithFallback(['text-custom-fields', 'text-custom-field-batch'], false),
+        fetchWithFallback(['/api2/checkbox-custom-fields', '/api2/checkbox-custom-field-batch'], false),
+        fetchWithFallback(['/api2/text-custom-fields', '/api2/text-custom-field-batch'], false),
         fetchRawWithFallback(['business-details'], true)
       ]);
       const detected = E.detectFbrFields({ checkboxCustomFields: checkboxFields, textCustomFields: textFields });
       State.fbrField = detected.checkbox;
       State.adjustmentField = detected.adjustment;
-      if (!State.fbrField) throw new Error('The FBR checkbox custom field was not found. Create a checkbox field named exactly "FBR" and place it on the document types you want to report.');
-      if (!State.adjustmentField) throw new Error('The FBR Adjustment text field was not found. Create a paragraph text field named exactly "FBR Adjustment" and place it on Folder.');
+      if (!State.fbrField) {
+        const foundNames = (checkboxFields || []).map((f) => f && (f.name || f.Name || f.item && (f.item.name || f.item.Name))).filter(Boolean);
+        throw new Error('The FBR checkbox custom field was not found. Checked checkbox custom fields: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. Create a checkbox field named exactly "FBR" and place it on the document types you want to report.');
+      }
+      if (!State.adjustmentField) {
+        const foundNames = (textFields || []).map((f) => f && (f.name || f.Name || f.item && (f.item.name || f.item.Name))).filter(Boolean);
+        throw new Error('The FBR Adjustment text field was not found. Checked text custom fields: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. Create a paragraph text field named exactly "FBR Adjustment" and place it on Folder.');
+      }
       State.placement = E.placementStatus(State.fbrField, E.DOC_TYPES);
       const bd = firstItem(businessDetails);
       State.business = bd || null;
