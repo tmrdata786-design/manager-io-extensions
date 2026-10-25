@@ -851,18 +851,9 @@ tr:last-child td { border-bottom: 0; }
       created = true;
     }
 
-    // Use /transactions endpoint for actual GL data (view endpoint not available on this server version)
-    setBusy(true, 'Fetching GL transactions', 'Reading posted ledger rows from Manager');
-    let model = { rows: [] };
-    try {
-      const fetched = await apiCall('GET', '/api2/transactions', null, { timeoutMs: 90000 });
-      if (fetched) {
-        // The /transactions endpoint returns flat rows; convert to expected nested format if needed
-        model = fetched && fetched.rows ? fetched : { rows: fetched && Array.isArray(fetched) ? fetched : (fetched ? [fetched] : []) };
-      }
-    } catch (error) {
-      throw new Error('Failed to retrieve GL transactions: ' + error.message + ' (endpoint: /api2/transactions, status: ' + (error.message && error.message.includes('HTTP') ? error.message.split(':')[1].trim() : 'unknown') + ')');
-    }
+    // Build GL model from FBR-tagged document forms (view endpoint not available on this server version)
+    setBusy(true, 'Building GL model from documents', 'Fetching full forms for FBR-tagged transactions');
+    let model = await buildGlModelFromDocuments(wantedFrom, wantedTo);
 
     State.glReportKey = key;
     State.glRange = { from: wantedFrom, to: wantedTo };
@@ -885,6 +876,240 @@ tr:last-child td { border-bottom: 0; }
     }
     recompute();
     renderAll();
+  }
+
+  async function buildGlModelFromDocuments(from, to) {
+    if (!State.docIndex || !State.accountIndex) return { rows: [] };
+    const docIndex = State.docIndex;
+    const accountIndex = State.accountIndex;
+    const accountGroups = new Map();
+
+    function getGroup(accountKey, accountName, accountType) {
+      const groupKey = accountKey || 'UNMAPPED:' + accountName;
+      if (!accountGroups.has(groupKey)) {
+        accountGroups.set(groupKey, {
+          name: accountName || 'Unknown Account',
+          accountKey: accountKey,
+          accountType: accountType,
+          rows: []
+        });
+      }
+      return accountGroups.get(groupKey);
+    }
+
+    function addGlLine(doc, accountKey, accountName, accountType, debit, credit, description) {
+      const group = getGroup(accountKey, accountName, accountType);
+      const href = '/api2/' + doc.type + '-form/' + encodeURIComponent(doc.rawKey);
+      group.rows.push({
+        name: description || doc.reference || doc.key,
+        cells: [
+          { value: debit || 0, link: { href: href } },
+          { value: credit || 0, link: { href: href } },
+          { value: (debit || 0) - (credit || 0) }
+        ],
+        docKey: doc.key
+      });
+    }
+
+    // Helper to fetch full form for a document
+    async function fetchDocForm(doc) {
+      const endpoint = '/api2/' + doc.type + '-form/' + encodeURIComponent(doc.rawKey);
+      try {
+        const form = await apiCall('GET', endpoint, null, { timeoutMs: 60000 });
+        return form;
+      } catch (error) {
+        State.warnings.push('Failed to fetch form for ' + doc.typeLabel + ' ' + doc.rawKey + ': ' + error.message);
+        return null;
+      }
+    }
+
+    // Process each document type that has FBR-tagged documents in range
+    const enabledTypes = E.DOC_TYPES.filter((type) => State.placement.placement.includes(String(type.typeGuid).toLowerCase()));
+    let processedCount = 0;
+    let totalToProcess = 0;
+
+    // First pass: count FBR-tagged documents in range to show progress
+    for (const type of enabledTypes) {
+      const docs = docIndex.byType.get(type.key) || [];
+      for (const doc of docs) {
+        if (!doc.date || doc.date < from || doc.date > to) continue;
+        if (!doc.fbr) continue;
+        totalToProcess++;
+      }
+    }
+
+    for (const type of enabledTypes) {
+      const docs = docIndex.byType.get(type.key) || [];
+      for (const doc of docs) {
+        if (!doc.date || doc.date < from || doc.date > to) continue;
+        if (!doc.fbr) continue; // Only process FBR-tagged documents
+
+        processedCount++;
+        setBusy(true, 'Processing ' + type.label, processedCount + ' of ' + totalToProcess);
+
+        const form = await fetchDocForm(doc);
+        if (!form) continue;
+
+        // Check FBR checkbox on the form (more reliable than list endpoint)
+        const formFbr = E.readCheckbox(form, State.fbrField.key);
+        if (!formFbr) continue; // Double-check FBR flag on form
+
+        // Process based on document type
+        if (type.key === 'receipt' || type.key === 'payment' || type.key === 'expense-claim') {
+          // Receipts, Payments, Expense Claims have Lines array
+          const lines = form.Lines || form.lines || [];
+          for (const line of lines) {
+            const accountId = line.Account || line.account;
+            const amount = E.num(line.Amount || line.amount || 0);
+            if (amount === 0) continue;
+
+            let accountKey = null;
+            let accountName = '';
+            let accountType = 'BS';
+            if (accountId && accountIndex) {
+              const acct = accountIndex.byKey.get(String(accountId).toLowerCase());
+              if (acct) {
+                accountKey = acct.key;
+                accountName = acct.nameWithCode;
+                accountType = acct.type;
+              }
+            }
+            if (!accountKey) {
+              accountName = accountId || 'Unknown Account';
+            }
+
+            // Receipt: account in Lines is CREDIT (money coming in)
+            // Payment/Expense Claim: account in Lines is DEBIT (money going out)
+            let debit = 0, credit = 0;
+            if (type.key === 'receipt') {
+              credit = amount;
+            } else {
+              debit = amount;
+            }
+
+            const desc = doc.date + ' - ' + doc.typeLabel + ' ' + (doc.reference || doc.key.slice(0, 8));
+            addGlLine(doc, line, accountKey, accountName, accountType, debit, credit, desc);
+          }
+        } else if (type.key === 'inter-account-transfer') {
+          // Inter Account Transfer has PaidFrom (credit), ReceivedIn (debit), CreditAmount/DebitAmount
+          const amount = E.num(form.CreditAmount || form.DebitAmount || form.Amount || 0);
+          if (amount > 0) {
+            const paidFromId = form.PaidFrom || form.paidFrom;
+            const receivedInId = form.ReceivedIn || form.receivedIn;
+
+            // PaidFrom account: CREDIT (money leaving)
+            if (paidFromId) {
+              let accountKey = null, accountName = '', accountType = 'BS';
+              if (accountIndex) {
+                const acct = accountIndex.byKey.get(String(paidFromId).toLowerCase());
+                if (acct) { accountKey = acct.key; accountName = acct.nameWithCode; accountType = acct.type; }
+              }
+              if (!accountKey) accountName = paidFromId || 'Paid From Account';
+              const desc = doc.date + ' - ' + doc.typeLabel + ' ' + (doc.reference || doc.key.slice(0, 8));
+              addGlLine(doc, null, accountKey, accountName, accountType, 0, amount, desc);
+            }
+
+            // ReceivedIn account: DEBIT (money entering)
+            if (receivedInId) {
+              let accountKey = null, accountName = '', accountType = 'BS';
+              if (accountIndex) {
+                const acct = accountIndex.byKey.get(String(receivedInId).toLowerCase());
+                if (acct) { accountKey = acct.key; accountName = acct.nameWithCode; accountType = acct.type; }
+              }
+              if (!accountKey) accountName = receivedInId || 'Received In Account';
+              const desc = doc.date + ' - ' + doc.typeLabel + ' ' + (doc.reference || doc.key.slice(0, 8));
+              addGlLine(doc, null, accountKey, accountName, accountType, amount, 0, desc);
+            }
+          }
+        } else if (type.key === 'journal-entry') {
+          // Journal Entries have Lines with Debit/Credit
+          const lines = form.Lines || form.lines || [];
+          for (const line of lines) {
+            const accountId = line.Account || line.account;
+            const debit = E.num(line.Debit || line.debit || 0);
+            const credit = E.num(line.Credit || line.credit || 0);
+            if (debit === 0 && credit === 0) continue;
+
+            let accountKey = null, accountName = '', accountType = 'BS';
+            if (accountId && accountIndex) {
+              const acct = accountIndex.byKey.get(String(accountId).toLowerCase());
+              if (acct) { accountKey = acct.key; accountName = acct.nameWithCode; accountType = acct.type; }
+            }
+            if (!accountKey) accountName = accountId || 'Unknown Account';
+
+            const desc = doc.date + ' - ' + doc.typeLabel + ' ' + (doc.reference || doc.key.slice(0, 8));
+            addGlLine(doc, line, accountKey, accountName, accountType, debit, credit, desc);
+          }
+        } else {
+          // Sales Invoice, Purchase Invoice, Credit Note, Debit Note - have Lines with Debit/Credit
+          const lines = form.Lines || form.lines || [];
+          for (const line of lines) {
+            const accountId = line.Account || line.account;
+            const debit = E.num(line.Debit || line.debit || 0);
+            const credit = E.num(line.Credit || line.credit || 0);
+            if (debit === 0 && credit === 0) continue;
+
+            let accountKey = null, accountName = '', accountType = 'BS';
+            if (accountId && accountIndex) {
+              const acct = accountIndex.byKey.get(String(accountId).toLowerCase());
+              if (acct) { accountKey = acct.key; accountName = acct.nameWithCode; accountType = acct.type; }
+            }
+            if (!accountKey) accountName = accountId || 'Unknown Account';
+
+            const desc = doc.date + ' - ' + doc.typeLabel + ' ' + (doc.reference || doc.key.slice(0, 8));
+            addGlLine(doc, line, accountKey, accountName, accountType, debit, credit, desc);
+          }
+        }
+      }
+    }
+
+    // Also process Late Payment Fees if linked to FBR-tagged Sales Invoices
+    const lateFees = docIndex.byType.get('late-payment-fee') || [];
+    for (const fee of lateFees) {
+      if (!fee.date || fee.date < from || fee.date > to) continue;
+      if (!fee.fbr) continue; // fbr is set via attachLateFeeLinks based on linked invoice
+
+      const form = await fetchDocForm(fee);
+      if (!form) continue;
+
+      // Late Payment Fees typically have Lines with income account
+      const lines = form.Lines || form.lines || [];
+      for (const line of lines) {
+        const accountId = line.Account || line.account;
+        const amount = E.num(line.Amount || line.amount || 0);
+        if (amount === 0) continue;
+
+        let accountKey = null, accountName = '', accountType = 'PL';
+        if (accountId && accountIndex) {
+          const acct = accountIndex.byKey.get(String(accountId).toLowerCase());
+          if (acct) { accountKey = acct.key; accountName = acct.nameWithCode; accountType = acct.type; }
+        }
+        if (!accountKey) accountName = 'Late Payment Fee Income';
+
+        const desc = fee.date + ' - ' + fee.typeLabel + ' ' + (fee.reference || fee.key.slice(0, 8));
+        addGlLine(fee, line, accountKey, accountName, accountType, amount, 0, desc);
+      }
+    }
+
+    // Convert groups to rows array
+    const rows = [];
+    for (const group of accountGroups.values()) {
+      if (group.rows.length > 0) {
+        rows.push({
+          name: group.name,
+          rows: group.rows
+        });
+      }
+    }
+
+    // Add synthetic total rows
+    rows.push({
+      name: 'Total',
+      isBold: true,
+      cells: [{ value: 0 }, { value: 0 }, { value: 0 }]
+    });
+
+    return { rows };
   }
 
   async function fetchFullFolders() {
