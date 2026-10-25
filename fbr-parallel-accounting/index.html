@@ -712,8 +712,7 @@ tr:last-child td { border-bottom: 0; }
       State.businessName = (bd && (bd.name || bd.Name)) || State.context.business || 'Manager business';
 
       setBusy(true, 'Reading chart of accounts', 'Accounts, groups and base currency');
-      const [plAccountsRaw, bsAccountsRaw, plGroups, bsGroups, customers, suppliers, employees, baseCurrency, folders] = await Promise.all([
-        fetchWithFallback(['/api2/chart-of-accounts'], false),
+      const [allAccounts, plGroups, bsGroups, customers, suppliers, employees, baseCurrency, folders] = await Promise.all([
         fetchWithFallback(['/api2/chart-of-accounts'], false),
         fetchWithFallback(['profit-and-loss-statement-group-batch'], true),
         fetchWithFallback(['balance-sheet-group-batch'], true),
@@ -724,6 +723,24 @@ tr:last-child td { border-bottom: 0; }
         fetchFullFolders()
       ]);
       const groups = Object.assign({}, groupMapFrom(plGroups), groupMapFrom(bsGroups));
+
+      // Classify accounts from chart-of-accounts by account code (first digit of code in name)
+      // 1xxx = Assets (BS), 2xxx = Liabilities (BS), 3xxx = Equity (BS)
+      // 4xxx = Revenue (PL), 5xxx = Expenses (PL), 6xxx+ = Expenses/Other (PL)
+      const plAccounts = [];
+      const bsAccounts = [];
+      for (const acct of allAccounts || []) {
+        const item = E.unwrapItem(acct) || {};
+        const name = item.name || item.Name || '';
+        const codeMatch = name.match(/^(\d{4,})/);
+        const firstDigit = codeMatch ? parseInt(codeMatch[1][0], 10) : null;
+        if (firstDigit >= 1 && firstDigit <= 3) {
+          bsAccounts.push(acct);
+        } else {
+          plAccounts.push(acct);
+        }
+      }
+
       State.accountIndex = E.buildAccountIndex(plAccounts, bsAccounts, { groups: groups });
       State.partyIndex = E.buildPartyIndex(customers, suppliers, employees, []);
       const base = firstItem(baseCurrency);
