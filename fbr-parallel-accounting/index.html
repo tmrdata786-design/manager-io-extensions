@@ -492,7 +492,7 @@ tr:last-child td { border-bottom: 0; }
   async function fetchAllPages(endpoint, options) {
     const opts = options || {};
     const pageSize = opts.pageSize || 2000;
-    let base = endpoint.startsWith('/api4/') || endpoint.startsWith('/api2/') ? endpoint : '/api4/' + endpoint;
+    let base = endpoint.startsWith('/api2/') || endpoint.startsWith('/api2/') ? endpoint : '/api2/' + endpoint;
     const collected = [];
     const seen = new Set();
     let skip = 0;
@@ -562,7 +562,7 @@ tr:last-child td { border-bottom: 0; }
   async function fetchRawWithFallback(endpoints, optional) {
     let lastError = null;
     for (const endpoint of endpoints) {
-      const path = endpoint.startsWith('/api4/') || endpoint.startsWith('/api2/') ? endpoint : '/api4/' + endpoint;
+      const path = endpoint.startsWith('/api2/') || endpoint.startsWith('/api2/') ? endpoint : '/api2/' + endpoint;
       try {
         return await apiCall('GET', path, null, { timeoutMs: 60000 });
       } catch (error) {
@@ -671,8 +671,8 @@ tr:last-child td { border-bottom: 0; }
     setBusy(true, 'Reading FBR fields', 'Custom fields and placement');
     try {
       const [checkboxFields, textFields, businessDetails] = await Promise.all([
-        fetchWithFallback(['/api4/checkbox-custom-fields', '/api4/checkbox-custom-field-batch'], false),
-        fetchWithFallback(['/api4/text-custom-fields', '/api4/text-custom-field-batch'], false),
+        fetchWithFallback(['/api2/checkbox-custom-fields', '/api2/checkbox-custom-field-batch'], false),
+        fetchWithFallback(['/api2/text-custom-fields', '/api2/text-custom-field-batch'], false),
         fetchRawWithFallback(['business-details'], true)
       ]);
       const detected = E.detectFbrFields({ checkboxCustomFields: checkboxFields, textCustomFields: textFields });
@@ -680,11 +680,31 @@ tr:last-child td { border-bottom: 0; }
       State.adjustmentField = detected.adjustment;
       if (!State.fbrField) {
         const foundNames = (checkboxFields || []).map((f) => f && (f.name || f.Name || f.item && (f.item.name || f.item.Name))).filter(Boolean);
-        throw new Error('The FBR checkbox custom field was not found. Checked checkbox custom fields: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. Create a checkbox field named exactly "FBR" and place it on the document types you want to report.');
+        const existingUuid = '01a16857-7f54-7da0-a97e-2c29ec11bf7e';
+        const foundUuid = (checkboxFields || []).map((f) => f && (f.key || f.Key || f.id)).filter(Boolean);
+        const hasUuid = foundUuid.includes(existingUuid) || foundUuid.some((k) => String(k).toLowerCase() === existingUuid.toLowerCase());
+        const endpointCalled = '/api2/checkbox-custom-fields';
+        const responseCount = checkboxFields ? checkboxFields.length : 0;
+        const responseSummary = checkboxFields ? checkboxFields.map((f) => {
+          const item = f && (f.item || f);
+          return item ? (item.name || item.Name || item.key || item.Key || 'unknown') : 'null';
+        }).join(', ') : 'empty';
+        const diagnosticMsg = 'FBR checkbox discovery failed. Endpoint: ' + endpointCalled + '. Response fields: ' + responseCount + '. Existing UUID ' + existingUuid + ' found in response: ' + (hasUuid ? 'YES' : 'NO') + '. Response names: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. Response summary: ' + responseSummary + '. Check API permissions, Manager context, field placement (9 document types), field name "FBR", and endpoint access.';
+        throw new Error('The FBR checkbox custom field was not found. Checked checkbox custom fields: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. ' + diagnosticMsg);
       }
       if (!State.adjustmentField) {
         const foundNames = (textFields || []).map((f) => f && (f.name || f.Name || f.item && (f.item.name || f.item.Name))).filter(Boolean);
-        throw new Error('The FBR Adjustment text field was not found. Checked text custom fields: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. Create a paragraph text field named exactly "FBR Adjustment" and place it on Folder.');
+        const existingUuid = '01a1685a-e683-7cf0-b9d0-4fac8715f4e9';
+        const foundUuid = (textFields || []).map((f) => f && (f.key || f.Key || f.id)).filter(Boolean);
+        const hasUuid = foundUuid.includes(existingUuid) || foundUuid.some((k) => String(k).toLowerCase() === existingUuid.toLowerCase());
+        const endpointCalled = '/api2/text-custom-fields';
+        const responseCount = textFields ? textFields.length : 0;
+        const responseSummary = textFields ? textFields.map((f) => {
+          const item = f && (f.item || f);
+          return item ? (item.name || item.Name || item.key || item.Key || 'unknown') : 'null';
+        }).join(', ') : 'empty';
+        const diagnosticMsg = 'FBR Adjustment discovery failed. Endpoint: ' + endpointCalled + '. Response fields: ' + responseCount + '. Existing UUID ' + existingUuid + ' found: ' + (hasUuid ? 'YES' : 'NO') + '. Response names: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. Response summary: ' + responseSummary + '. Check API permissions, Manager context, and endpoint access.';
+        throw new Error('The FBR Adjustment text field was not found. Checked text custom fields: ' + (foundNames.length ? foundNames.join(', ') : 'none') + '. ' + diagnosticMsg);
       }
       State.placement = E.placementStatus(State.fbrField, E.DOC_TYPES);
       const bd = firstItem(businessDetails);
@@ -766,10 +786,10 @@ tr:last-child td { border-bottom: 0; }
     };
     let response;
     try {
-      response = await apiCall('POST', '/api4/general-ledger-transactions-form', formBody, { timeoutMs: 60000 });
+      response = await apiCall('POST', '/api2/general-ledger-transactions-form', formBody, { timeoutMs: 60000 });
     } catch (error) {
       if (!isNotFound(error)) throw error;
-      response = await apiCall('POST', '/api4/general-ledger-transactions', {
+      response = await apiCall('POST', '/api2/general-ledger-transactions', {
         value: { description: description, fromDate: from, toDate: to, account: null }
       }, { timeoutMs: 60000 });
     }
@@ -794,7 +814,7 @@ tr:last-child td { border-bottom: 0; }
       setBusy(true, 'Finding GL report definition', 'Read-only lookup');
       let definitions = [];
       try {
-        definitions = await fetchWithFallback(['/api4/general-ledger-transactions-batch', '/api4/general-ledger-transactions'], true);
+        definitions = await fetchWithFallback(['/api2/general-ledger-transactions-batch', '/api2/general-ledger-transactions'], true);
       } catch (error) {
         definitions = [];
       }
@@ -818,7 +838,7 @@ tr:last-child td { border-bottom: 0; }
     setBusy(true, 'Fetching GL report view', 'Downloading from Manager API');
     let model = { rows: [] };
     try {
-      const fetched = await apiCall('GET', '/api4/general-ledger-transactions-view?Key=' + encodeURIComponent(key), null, { timeoutMs: 90000 });
+      const fetched = await apiCall('GET', '/api2/general-ledger-transactions-view?Key=' + encodeURIComponent(key), null, { timeoutMs: 90000 });
       if (fetched) model = fetched;
     } catch (error) {
       throw new Error('Failed to retrieve General Ledger report view: ' + error.message);
@@ -848,7 +868,7 @@ tr:last-child td { border-bottom: 0; }
   }
 
   async function fetchFullFolders() {
-    const folders = await fetchWithFallback(['/api4/folders', '/api4/folder-batch'], false);
+    const folders = await fetchWithFallback(['/api2/folders', '/api2/folder-batch'], false);
     const full = [];
     for (const folder of folders) {
       const key = E.itemKey(folder);
@@ -858,7 +878,7 @@ tr:last-child td { border-bottom: 0; }
         continue;
       }
       try {
-        const record = await apiCall('GET', '/api4/folder-form/' + encodeURIComponent(key), null, { timeoutMs: 60000 });
+        const record = await apiCall('GET', '/api2/folder-form/' + encodeURIComponent(key), null, { timeoutMs: 60000 });
         full.push({ key: key, item: record || item });
       } catch (error) {
         full.push(folder);
@@ -891,17 +911,17 @@ tr:last-child td { border-bottom: 0; }
 
   async function createFolder(body) {
     try {
-      return await apiCall('POST', '/api4/folder-form', body, { timeoutMs: 60000 });
+      return await apiCall('POST', '/api2/folder-form', body, { timeoutMs: 60000 });
     } catch (error) {
-      if (isNotFound(error)) return await apiCall('POST', '/api4/folder', folderCollectionBody(body), { timeoutMs: 60000 });
+      if (isNotFound(error)) return await apiCall('POST', '/api2/folder', folderCollectionBody(body), { timeoutMs: 60000 });
       throw error;
     }
   }
 
   async function updateFolder(key, body) {
     const attempts = [
-      ['PUT', '/api4/folder-form/' + encodeURIComponent(key), Object.assign({ Key: key }, body)],
-      ['PUT', '/api4/folder', Object.assign({ key: key }, folderCollectionBody(body))]
+      ['PUT', '/api2/folder-form/' + encodeURIComponent(key), Object.assign({ Key: key }, body)],
+      ['PUT', '/api2/folder', Object.assign({ key: key }, folderCollectionBody(body))]
     ];
     for (const attempt of attempts) {
       try {

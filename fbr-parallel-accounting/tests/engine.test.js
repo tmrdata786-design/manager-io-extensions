@@ -232,20 +232,20 @@ test('detects foreign documents from exchange rate when no currency field exists
 
 test('uses live plural API endpoints before legacy batch endpoints', () => {
   const expectations = {
-    'sales-invoice': '/api4/sales-invoices',
-    'purchase-invoice': '/api4/purchase-invoices',
-    'credit-note': '/api4/credit-notes',
-    'debit-note': '/api4/debit-notes',
-    'journal-entry': '/api4/journal-entries',
-    receipt: '/api4/receipts',
-    payment: '/api4/payments',
-    'expense-claim': '/api4/expense-claims',
-    'inter-account-transfer': '/api4/inter-account-transfers'
+    'sales-invoice': '/api2/sales-invoices',
+    'purchase-invoice': '/api2/purchase-invoices',
+    'credit-note': '/api2/credit-notes',
+    'debit-note': '/api2/debit-notes',
+    'journal-entry': '/api2/journal-entries',
+    receipt: '/api2/receipts',
+    payment: '/api2/payments',
+    'expense-claim': '/api2/expense-claims',
+    'inter-account-transfer': '/api2/inter-account-transfers'
   };
   for (const [key, endpoint] of Object.entries(expectations)) {
     assert.equal(E.DOC_TYPES.find((item) => item.key === key).endpoints[0], endpoint);
   }
-  assert.equal(E.LATE_FEE_TYPE.endpoints[0], '/api4/late-payment-fees');
+  assert.equal(E.LATE_FEE_TYPE.endpoints[0], '/api2/late-payment-fees');
 });
 
 test('parses GL report groups, links and synthetic rows', () => {
