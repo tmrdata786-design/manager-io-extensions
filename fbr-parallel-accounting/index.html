@@ -834,14 +834,17 @@ tr:last-child td { border-bottom: 0; }
       created = true;
     }
 
-    // Retrieve GL data through the correct API endpoint (view returns transaction rows with source links)
-    setBusy(true, 'Fetching GL report view', 'Downloading from Manager API');
+    // Use /transactions endpoint for actual GL data (view endpoint not available on this server version)
+    setBusy(true, 'Fetching GL transactions', 'Reading posted ledger rows from Manager');
     let model = { rows: [] };
     try {
-      const fetched = await apiCall('GET', '/api2/general-ledger-transactions-view?Key=' + encodeURIComponent(key), null, { timeoutMs: 90000 });
-      if (fetched) model = fetched;
+      const fetched = await apiCall('GET', '/api2/transactions', null, { timeoutMs: 90000 });
+      if (fetched) {
+        // The /transactions endpoint returns flat rows; convert to expected nested format if needed
+        model = fetched && fetched.rows ? fetched : { rows: fetched && Array.isArray(fetched) ? fetched : (fetched ? [fetched] : []) };
+      }
     } catch (error) {
-      throw new Error('Failed to retrieve General Ledger report view: ' + error.message);
+      throw new Error('Failed to retrieve GL transactions: ' + error.message + ' (endpoint: /api2/transactions, status: ' + (error.message && error.message.includes('HTTP') ? error.message.split(':')[1].trim() : 'unknown') + ')');
     }
 
     State.glReportKey = key;
