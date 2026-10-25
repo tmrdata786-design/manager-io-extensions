@@ -712,9 +712,9 @@ tr:last-child td { border-bottom: 0; }
       State.businessName = (bd && (bd.name || bd.Name)) || State.context.business || 'Manager business';
 
       setBusy(true, 'Reading chart of accounts', 'Accounts, groups and base currency');
-      const [plAccounts, bsAccounts, plGroups, bsGroups, customers, suppliers, employees, baseCurrency, folders] = await Promise.all([
-        fetchWithFallback(['profit-and-loss-statement-account-batch'], false),
-        fetchWithFallback(['balance-sheet-account-batch'], false),
+      const [plAccountsRaw, bsAccountsRaw, plGroups, bsGroups, customers, suppliers, employees, baseCurrency, folders] = await Promise.all([
+        fetchWithFallback(['/api2/chart-of-accounts'], false),
+        fetchWithFallback(['/api2/chart-of-accounts'], false),
         fetchWithFallback(['profit-and-loss-statement-group-batch'], true),
         fetchWithFallback(['balance-sheet-group-batch'], true),
         fetchWithFallback(['customers', 'customer-batch'], true),
