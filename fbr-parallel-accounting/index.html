@@ -628,7 +628,7 @@ tr:last-child td { border-bottom: 0; }
     const from = $('#period-from');
     const to = $('#period-to');
     if (start) start.value = config.fbrStartDate || config.defaultPeriodFrom || E.firstDayOfYear(today());
-    if (from) from.value = config.defaultPeriodFrom || config.fbrStartDate || E.firstDayOfYear(today());
+    if (from) from.value = config.fbrStartDate || config.defaultPeriodFrom || E.firstDayOfYear(today());
     if (to) to.value = config.defaultPeriodTo || today();
   }
 
@@ -638,7 +638,7 @@ tr:last-child td { border-bottom: 0; }
     const to = $('#period-to') && $('#period-to').value;
     return {
       fbrStartDate: start || (State.config && State.config.fbrStartDate) || E.firstDayOfYear(today()),
-      periodFrom: from || start || (State.config && State.config.defaultPeriodFrom) || E.firstDayOfYear(today()),
+      periodFrom: from || (State.config && State.config.fbrStartDate) || E.firstDayOfYear(today()),
       periodTo: to || (State.config && State.config.defaultPeriodTo) || today(),
       includeForeign: false
     };
@@ -956,39 +956,54 @@ tr:last-child td { border-bottom: 0; }
 
         // Process based on document type
         if (type.key === 'receipt' || type.key === 'payment' || type.key === 'expense-claim') {
-          // Receipts, Payments, Expense Claims have Lines array
+          // Receipts, Payments, Expense Claims have Lines array + PaidFrom/ReceivedIn for balancing
           const lines = form.Lines || form.lines || [];
+
+          // First, get the balancing account (bank/cash account)
+          const isReceipt = type.key === 'receipt';
+          const balancingAccountId = isReceipt ? (form.ReceivedIn || form.receivedIn) : (form.PaidFrom || form.paidFrom);
+          let balancingAccountKey = null, balancingAccountName = '', balancingAccountType = 'BS';
+          if (balancingAccountId && accountIndex) {
+            const acct = accountIndex.byKey.get(String(balancingAccountId).toLowerCase());
+            if (acct) { balancingAccountKey = acct.key; balancingAccountName = acct.nameWithCode; balancingAccountType = acct.type; }
+          }
+          if (!balancingAccountKey) balancingAccountName = balancingAccountId || (isReceipt ? 'Received In Account' : 'Paid From Account');
+
           for (const line of lines) {
             const accountId = line.Account || line.account;
             const amount = E.num(line.Amount || line.amount || 0);
             if (amount === 0) continue;
 
-            let accountKey = null;
-            let accountName = '';
-            let accountType = 'BS';
+            let accountKey = null, accountName = '', accountType = 'BS';
             if (accountId && accountIndex) {
               const acct = accountIndex.byKey.get(String(accountId).toLowerCase());
-              if (acct) {
-                accountKey = acct.key;
-                accountName = acct.nameWithCode;
-                accountType = acct.type;
-              }
+              if (acct) { accountKey = acct.key; accountName = acct.nameWithCode; accountType = acct.type; }
             }
-            if (!accountKey) {
-              accountName = accountId || 'Unknown Account';
-            }
+            if (!accountKey) accountName = accountId || 'Unknown Account';
 
-            // Receipt: account in Lines is CREDIT (money coming in)
-            // Payment/Expense Claim: account in Lines is DEBIT (money going out)
-            let debit = 0, credit = 0;
-            if (type.key === 'receipt') {
-              credit = amount;
+            // Line account: Receipt = CREDIT, Payment/ExpenseClaim = DEBIT
+            let lineDebit = 0, lineCredit = 0;
+            if (isReceipt) {
+              lineCredit = amount;
             } else {
-              debit = amount;
+              lineDebit = amount;
             }
 
             const desc = doc.date + ' - ' + doc.typeLabel + ' ' + (doc.reference || doc.key.slice(0, 8));
-            addGlLine(doc, line, accountKey, accountName, accountType, debit, credit, desc);
+            addGlLine(doc, line, accountKey, accountName, accountType, lineDebit, lineCredit, desc);
+
+            // ALSO add the balancing bank/cash account entry
+            // Receipt: balancing account (ReceivedIn) = DEBIT
+            // Payment/ExpenseClaim: balancing account (PaidFrom) = CREDIT
+            if (balancingAccountId) {
+              let balDebit = 0, balCredit = 0;
+              if (isReceipt) {
+                balDebit = amount;
+              } else {
+                balCredit = amount;
+              }
+              addGlLine(doc, null, balancingAccountKey, balancingAccountName, balancingAccountType, balDebit, balCredit, desc);
+            }
           }
         } else if (type.key === 'inter-account-transfer') {
           // Inter Account Transfer has PaidFrom (credit), ReceivedIn (debit), CreditAmount/DebitAmount
